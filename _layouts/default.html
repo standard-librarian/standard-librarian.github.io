@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    {% include head.html %}
+  </head>
+  <body>
+    <div class="page">
+      <header class="site-header">
+        <div class="container">
+          <a class="site-title" href="{{ '/' | relative_url }}">{{ site.title }}</a>
+          <nav class="site-nav">
+            <a href="{{ '/about/' | relative_url }}">About</a>
+            <a href="{{ '/now/' | relative_url }}">Now</a>
+            <a href="{{ '/' | relative_url }}">Blog</a>
+          </nav>
+        </div>
+      </header>
+
+      <main class="site-main">
+        {{ content }}
+      </main>
+
+      {% include footer.html %}
+    </div>
+    <script src="{{ '/assets/js/graph-data.js' | relative_url }}"></script>
+    <script src="{{ '/assets/js/graph.js' | relative_url }}"></script>
+  </body>
+</html>

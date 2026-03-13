@@ -1,0 +1,281 @@
+:root {
+  --bg: #0f1115;
+  --bg-soft: #151922;
+  --panel: #171c26;
+  --text: #e6e7eb;
+  --muted: #9aa3b2;
+  --line: #232837;
+  --accent: #7aa2f7;
+  --accent-soft: rgba(122, 162, 247, 0.2);
+  --shadow: rgba(5, 7, 12, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: radial-gradient(1200px 800px at 10% -10%, #1a2233, var(--bg));
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  width: min(1100px, 92%);
+  margin: 0 auto;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(15, 17, 21, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.site-header .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 0;
+}
+
+.site-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+
+.site-nav a {
+  margin-left: 18px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.site-nav a:hover {
+  color: var(--text);
+}
+
+.site-main {
+  flex: 1;
+}
+
+.hero {
+  padding: 72px 0 36px;
+}
+
+.hero .container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 40px;
+  align-items: center;
+}
+
+.hero-text h1 {
+  font-family: "Source Serif 4", serif;
+  font-size: clamp(2.4rem, 4vw, 3.6rem);
+  margin: 10px 0 12px;
+}
+
+.eyebrow {
+  color: var(--muted);
+  font-size: 0.9rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lead {
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.hero-cta {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+}
+
+.btn {
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  font-size: 0.95rem;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #0b1020;
+  border-color: transparent;
+}
+
+.btn.ghost {
+  color: var(--text);
+  background: transparent;
+}
+
+.graph-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 20px 40px var(--shadow);
+}
+
+.graph-header {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+}
+
+#graph-canvas {
+  width: 100%;
+  height: 360px;
+  border-radius: 12px;
+  background: #0c0f16;
+  border: 1px solid #111624;
+}
+
+.posts {
+  padding: 36px 0 80px;
+}
+
+.posts h2 {
+  font-size: 1.4rem;
+  margin-bottom: 18px;
+}
+
+.post-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.post-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.post-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+}
+
+.post-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.post-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.post-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.post-tags span {
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.post {
+  padding: 48px 0 80px;
+}
+
+.post-header h1 {
+  font-family: "Source Serif 4", serif;
+  font-size: clamp(2rem, 3vw, 3rem);
+  margin: 6px 0 10px;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+
+.tag {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.8rem;
+}
+
+.post-body {
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.post-body p {
+  color: var(--muted);
+}
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  background: #0b0e14;
+  padding: 26px 0;
+  margin-top: 40px;
+}
+
+.footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.footer-links a {
+  margin-left: 14px;
+  color: var(--muted);
+}
+
+.footer-links a:hover {
+  color: var(--text);
+}
+
+@media (max-width: 720px) {
+  .hero {
+    padding-top: 42px;
+  }
+
+  .site-header .container {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .site-nav a {
+    margin: 0 10px;
+  }
+}
