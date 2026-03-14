@@ -5,8 +5,8 @@ export function MdhtHero() {
     <div className="mdht-hero">
       <div className="mdht-hero-text">
         <p className="mdx-p">
-          I'm Mdht. I build software, think about math, read old books, and occasionally write
-          things worth reading. My interests don't fit neatly into one box — which is probably
+          I&apos;m Mdht. I build software, think about math, read old books, and occasionally write
+          things worth reading. My interests don&apos;t fit neatly into one box — which is probably
           why I have a blog instead of a LinkedIn summary.
         </p>
         <p className="mdx-p">
