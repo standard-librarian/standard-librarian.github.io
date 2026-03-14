@@ -3,6 +3,8 @@ import { CodeBlock } from "@/components/CodeBlock";
 import { Split } from "@/components/Split";
 import { CodeSnippet } from "@/components/CodeSnippet";
 import { DynamicComponent } from "@/components/DynamicComponent";
+import { MdhtPortrait } from "@/components/MdhtPortrait";
+import { MdhtHero } from "@/components/MdhtHero";
 import { RateLimitDemo } from "@/components/demos/RateLimitDemo";
 import { FixedWindowDemo } from "@/components/demos/FixedWindowDemo";
 import { SlidingWindowDemo } from "@/components/demos/SlidingWindowDemo";
@@ -28,6 +30,8 @@ export const mdxComponents = {
   Split,
   CodeSnippet,
   DynamicComponent,
+  MdhtPortrait,
+  MdhtHero,
   // Legacy: keep these registered so existing post content still works
   RateLimitDemo,
   FixedWindowDemo,

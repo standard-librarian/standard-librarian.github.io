@@ -1034,6 +1034,69 @@ main {
     border: none;
 }
 
+/* About portrait */
+.mdht-portrait {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.mdht-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: center;
+    margin: 8px 0 24px;
+}
+.mdht-hero > .mdht-portrait {
+    justify-self: end;
+}
+.mdht-hero-text p {
+    margin: 0 0 16px;
+}
+.mdht-hero-text p:last-child {
+    margin-bottom: 0;
+}
+
+@media (max-width: 720px) {
+    .mdht-hero {
+        grid-template-columns: 1fr;
+    }
+    .mdht-portrait-stack {
+        width: 200px;
+    }
+}
+.mdht-portrait-stack {
+    position: relative;
+    width: 220px;
+    aspect-ratio: 1 / 1;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+}
+.mdht-portrait-img {
+    object-fit: cover;
+    transition: opacity 0.2s ease;
+}
+.mdht-portrait-wink {
+    opacity: 0;
+}
+.mdht-portrait:hover .mdht-portrait-wink,
+.mdht-portrait.is-wink .mdht-portrait-wink,
+.mdht-portrait:focus-visible .mdht-portrait-wink {
+    opacity: 1;
+}
+.mdht-portrait:hover .mdht-portrait-base,
+.mdht-portrait.is-wink .mdht-portrait-base,
+.mdht-portrait:focus-visible .mdht-portrait-base {
+    opacity: 0;
+}
+
 /* Split component */
 .split {
     display: grid;

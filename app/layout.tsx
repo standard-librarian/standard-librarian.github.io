@@ -29,6 +29,10 @@ export const metadata: Metadata = {
     siteName: site.title,
     type: "website"
   },
+  icons: {
+    icon: "/mdht.png",
+    apple: "/mdht.png"
+  },
   twitter: {
     card: "summary_large_image",
     title: site.title,
