@@ -1065,9 +1065,13 @@ main {
 @media (max-width: 720px) {
     .mdht-hero {
         grid-template-columns: 1fr;
+        gap: 16px;
     }
     .mdht-portrait-stack {
-        width: 200px;
+        width: 240px;
+    }
+    .mdht-hero > .mdht-portrait {
+        justify-self: center;
     }
 }
 .mdht-portrait-stack {
