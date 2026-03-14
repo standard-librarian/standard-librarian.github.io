@@ -125,7 +125,7 @@ export function FixedWindowDemo({
           {count}/{limit} requests this window
         </span>
         {timeLeft !== null ? (
-          <span className="demo-window-reset">resets in {timeLeft.toFixed(1)}s</span>
+          <span className="demo-window-reset" suppressHydrationWarning>resets in {timeLeft.toFixed(1)}s</span>
         ) : (
           <span className="demo-window-reset demo-window-no-window">
             no active window
