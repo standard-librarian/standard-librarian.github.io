@@ -859,6 +859,7 @@ const contextDemoV1: ComponentDef = {
     { id: "typing", type: "boolean", initialValue: false },
     { id: "toolPending", type: "boolean", initialValue: false },
     { id: "tokenCount", type: "number", initialValue: 400 },
+    { id: "totalSpent", type: "number", initialValue: 400 },
     { id: "callHistory", type: "array", initialValue: [] },
     { id: "scenarioStep", type: "number", initialValue: 0 },
     { id: "scenarioChar", type: "number", initialValue: 0 },
@@ -885,6 +886,7 @@ const contextDemoV1: ComponentDef = {
         { type: "set", target: "typing", value: false },
         { type: "set", target: "toolPending", value: false },
         { type: "set", target: "tokenCount", value: 400 },
+        { type: "set", target: "totalSpent", value: 400 },
         { type: "set", target: "callHistory", value: [] },
         { type: "set", target: "scenarioStep", value: 0 },
         { type: "set", target: "scenarioChar", value: 0 },
@@ -904,6 +906,7 @@ const contextDemoV1: ComponentDef = {
     toolDelayMs: 520,
     tokenStateId: "tokenCount",
     tokenHistoryId: "callHistory",
+    totalSpentId: "totalSpent",
     steps: [
       {
         type: "system",
@@ -1045,7 +1048,7 @@ const contextDemoV1: ComponentDef = {
               type: "panel",
               props: { title: "Token usage", collapsible: false },
               children: [
-                { id: "token-bar", type: "progress-bar", props: { value: "${tokenCount}", max: 8000, label: "${tokenCount} / 8,000 tokens", variant: "used" } },
+                { id: "token-bar", type: "progress-bar", props: { value: "${totalSpent}", max: 35000, label: "${totalSpent} tokens billed total", variant: "used" } },
                 { id: "token-chart", type: "line-chart", props: { source: "callHistory" } },
               ],
             },

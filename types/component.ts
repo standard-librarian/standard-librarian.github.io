@@ -56,6 +56,7 @@ export type ScenarioDef = {
   systemDelayMs?: number;
   tokenStateId?: string;
   tokenHistoryId?: string;
+  totalSpentId?: string;
 };
 
 export type LogEntry = {
@@ -121,7 +122,8 @@ export type Op =
     }
   | { type: "clear-string"; target: string }
   | { type: "set-string"; target: string; value: string }
-  | { type: "push-state"; target: string; source: string };
+  | { type: "push-state"; target: string; source: string }
+  | { type: "increment-by-state"; target: string; source: string };
 
 export type Condition = {
   left: string | number;

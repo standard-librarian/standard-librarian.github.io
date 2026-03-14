@@ -152,6 +152,12 @@ function applyOps(state: State, ops: Op[]): State {
         s = { ...s, [op.target]: [...existing, num] };
         break;
       }
+      case "increment-by-state": {
+        const addend = typeof s[op.source] === "number" ? (s[op.source] as number) : 0;
+        const cur = typeof s[op.target] === "number" ? (s[op.target] as number) : 0;
+        s = { ...s, [op.target]: cur + addend };
+        break;
+      }
       case "delay-then": {
         // no-op in reducer — handled by runAction
         break;
@@ -862,6 +868,9 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
       ops.push({ type: "increment", target: scenario.tokenStateId, delta });
       if (scenario.tokenHistoryId) {
         ops.push({ type: "push-state", target: scenario.tokenHistoryId, source: scenario.tokenStateId });
+      }
+      if (scenario.totalSpentId) {
+        ops.push({ type: "increment-by-state", target: scenario.totalSpentId, source: scenario.tokenStateId });
       }
     },
     [scenario]
