@@ -327,16 +327,21 @@ function renderBlock(
       );
     }
 
-    case "button":
+    case "button": {
+      const isDisabled = block.props.disabledWhen
+        ? Boolean(state[block.props.disabledWhen])
+        : false;
       return (
         <button
           key={block.id}
           className="demo-btn"
-          onClick={() => runAction(block.props.action ?? "")}
+          disabled={isDisabled}
+          onClick={() => !isDisabled && runAction(block.props.action ?? "")}
         >
           {block.props.label}
         </button>
       );
+    }
 
     case "event-log": {
       const entries = (state[block.props.source ?? "log"] as LogEntry[]) ?? [];
@@ -444,6 +449,11 @@ function renderBlock(
     case "chat-input": {
       const stateId = block.props.inputState ?? "input";
       const value = String(state[stateId] ?? "");
+      const isDisabled = block.props.disabledWhen
+        ? Boolean(state[block.props.disabledWhen])
+        : false;
+      const autoSendOnInput = Boolean(block.props.autoSendOnInput);
+      const sendAction = block.props.sendAction ?? "send";
       return (
         <div key={block.id} className="demo-chat-input-row">
           <input
@@ -451,19 +461,30 @@ function renderBlock(
             className="demo-chat-input"
             value={value}
             placeholder={block.props.placeholder ?? "Type a message…"}
-            onChange={(e) =>
-              dispatchOps([{ type: "set-string", target: stateId, value: e.target.value }])
-            }
+            disabled={isDisabled}
+            onChange={(e) => {
+              const nextValue = e.target.value;
+              if (autoSendOnInput) {
+                if (!isDisabled && nextValue.trim()) {
+                  runAction(sendAction);
+                }
+                dispatchOps([{ type: "set-string", target: stateId, value: "" }]);
+                return;
+              }
+              dispatchOps([{ type: "set-string", target: stateId, value: nextValue }]);
+            }}
             onKeyDown={(e) => {
+              if (isDisabled || autoSendOnInput) return;
               if (e.key === "Enter" && !e.shiftKey && value.trim()) {
                 e.preventDefault();
-                runAction(block.props.sendAction ?? "send");
+                runAction(sendAction);
               }
             }}
           />
           <button
             className="demo-btn"
-            onClick={() => value.trim() && runAction(block.props.sendAction ?? "send")}
+            disabled={isDisabled}
+            onClick={() => value.trim() && runAction(sendAction)}
           >
             {block.props.label ?? "Send"}
           </button>

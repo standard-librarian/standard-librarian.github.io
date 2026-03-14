@@ -167,6 +167,8 @@ export type BlockProps = {
   inputState?: string;
   placeholder?: string;
   showTimestamps?: boolean;
+  disabledWhen?: string;
+  autoSendOnInput?: boolean;
   // Panel/card
   title?: string;
   collapsible?: boolean;

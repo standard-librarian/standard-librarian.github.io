@@ -1387,6 +1387,12 @@ main {
     color: var(--ink);
 }
 
+.demo-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: var(--line);
+}
+
 .demo-timeline {
     list-style: none;
     margin: 0;

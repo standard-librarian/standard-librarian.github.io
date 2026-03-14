@@ -1,5 +1,5 @@
 import { createComponent, upsertComponent } from "@/lib/components";
-import type { ComponentDef } from "@/types/component";
+import type { ComponentDef, Op } from "@/types/component";
 
 const tokenBucket: ComponentDef = {
   name: "Token Bucket Rate Limiter",
@@ -605,6 +605,101 @@ const agentMemory: ComponentDef = {
   ],
 };
 
+const agentMemoryV2ScenarioOps: Op[] = [
+  {
+    type: "conditional",
+    condition: { left: "scenarioStarted", op: "eq", right: 0 },
+    then: [
+      { type: "set", target: "scenarioStarted", value: true },
+      { type: "set", target: "scenarioRunning", value: true },
+      { type: "clear-string", target: "input" },
+      {
+        type: "append-log",
+        target: "messages",
+        kind: "system",
+        template: "You are a senior Go engineer inside a large monorepo. Use terse, practical responses. Prefer concurrency-safe patterns.",
+      },
+      {
+        type: "append-log",
+        target: "messages",
+        kind: "user",
+        template: "We are leaking goroutines in the request pipeline of a Go API. Where should I look first?",
+      },
+      { type: "set", target: "typing", value: true },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 700,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          { type: "set", target: "typing", value: false },
+          {
+            type: "append-log",
+            target: "messages",
+            kind: "assistant",
+            template: "Start with context cancellation and channel drains. I'll scan for goroutine spawns tied to request scope.",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 1300,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          {
+            type: "append-log",
+            target: "messages",
+            kind: "tool",
+            template: "{\"mcp\":\"GitHub\",\"action\":\"search\",\"query\":\"go routine leak context.WithCancel\"}",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 1700,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          { type: "set", target: "typing", value: true },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 2300,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          { type: "set", target: "typing", value: false },
+          {
+            type: "append-log",
+            target: "messages",
+            kind: "assistant",
+            template: "Leak is likely in streamProcessor where context is not canceled on early return. Wrap the goroutine with `select { case <-ctx.Done(): return }` and ensure `defer cancel()`.",
+          },
+          { type: "set", target: "scenarioRunning", value: false },
+        ],
+      },
+    ],
+  },
+];
+
 const agentMemoryV2: ComponentDef = {
   name: "Agent Memory Demo",
   description: "Shows how an LLM context window grows with each conversation turn, including a tool-call turn.",
@@ -614,72 +709,17 @@ const agentMemoryV2: ComponentDef = {
     { id: "step", type: "number", initialValue: 0 },
     { id: "typing", type: "boolean", initialValue: false },
     { id: "toolPending", type: "boolean", initialValue: false },
+    { id: "scenarioRunning", type: "boolean", initialValue: false },
+    { id: "scenarioStarted", type: "boolean", initialValue: false },
   ],
   actions: [
     {
       id: "send",
-      ops: [
-        { type: "append-log", target: "messages", template: "", kind: "user", fromState: "input" },
-        { type: "clear-string", target: "input" },
-        { type: "set", target: "typing", value: true },
-        {
-          type: "delay-then",
-          delayMs: 900,
-          ops: [
-            {
-              type: "conditional",
-              condition: { left: "step", op: "eq", right: 0 },
-              then: [
-                { type: "set", target: "typing", value: false },
-                { type: "append-log", target: "messages", kind: "assistant", template: "Hi! I'm a simple assistant. I can see our entire conversation history — that's what gets sent to the API on each call." },
-                { type: "increment", target: "step", delta: 1 },
-              ],
-              else: [
-                {
-                  type: "conditional",
-                  condition: { left: "step", op: "eq", right: 1 },
-                  then: [
-                    { type: "append-log", target: "messages", kind: "assistant", template: "Let me call token_count() to check the current context size…" },
-                    { type: "set", target: "toolPending", value: true },
-                  ],
-                  else: [
-                    { type: "set", target: "typing", value: false },
-                    {
-                      type: "conditional",
-                      condition: { left: "step", op: "eq", right: 2 },
-                      then: [
-                        { type: "append-log", target: "messages", kind: "assistant", template: "Notice the context window panel growing? Every message — including this one — is included in full." },
-                        { type: "increment", target: "step", delta: 1 },
-                      ],
-                      else: [
-                        { type: "append-log", target: "messages", kind: "assistant", template: "You can keep going — each turn appends to the context. Hit Reset to start fresh." },
-                        { type: "increment", target: "step", delta: 1 },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        {
-          type: "delay-then",
-          delayMs: 2200,
-          ops: [
-            {
-              type: "conditional",
-              condition: { left: "toolPending", op: "eq", right: 1 },
-              then: [
-                { type: "append-log", target: "messages", kind: "tool", template: '{"tokens":847,"messages":3}' },
-                { type: "set", target: "typing", value: false },
-                { type: "append-log", target: "messages", kind: "assistant", template: "847 tokens in that JSON panel. The entire structure ships to the API every turn." },
-                { type: "set", target: "toolPending", value: false },
-                { type: "increment", target: "step", delta: 1 },
-              ],
-            },
-          ],
-        },
-      ],
+      ops: agentMemoryV2ScenarioOps,
+    },
+    {
+      id: "autoPlay",
+      ops: agentMemoryV2ScenarioOps,
     },
     {
       id: "reset",
@@ -689,6 +729,8 @@ const agentMemoryV2: ComponentDef = {
         { type: "set", target: "step", value: 0 },
         { type: "set", target: "typing", value: false },
         { type: "set", target: "toolPending", value: false },
+        { type: "set", target: "scenarioRunning", value: false },
+        { type: "set", target: "scenarioStarted", value: false },
       ],
     },
   ],
@@ -705,7 +747,17 @@ const agentMemoryV2: ComponentDef = {
           children: [
             { id: "chat", type: "chat-feed", props: { source: "messages", showTimestamps: false } },
             { id: "typing-ind", type: "typing-indicator", props: { visibleWhen: "typing" } },
-            { id: "input-row", type: "chat-input", props: { inputState: "input", sendAction: "send", placeholder: "Type a message…" } },
+            {
+              id: "input-row",
+              type: "chat-input",
+              props: {
+                inputState: "input",
+                sendAction: "send",
+                placeholder: "Type a message…",
+                autoSendOnInput: true,
+                disabledWhen: "scenarioRunning",
+              },
+            },
           ],
         },
         {
@@ -723,6 +775,7 @@ const agentMemoryV2: ComponentDef = {
       type: "row",
       props: {},
       children: [
+        { id: "btn-autoplay", type: "button", props: { label: "Auto-play", action: "autoPlay", disabledWhen: "scenarioRunning" } },
         { id: "btn-reset", type: "button", props: { label: "Reset", action: "reset" } },
       ],
     },
@@ -819,6 +872,245 @@ const tokenGrowthV2: ComponentDef = {
 
 const tokenGrowthV3: ComponentDef = tokenGrowthV2;
 
+const contextDemoV1ScenarioOps: Op[] = [
+  {
+    type: "conditional",
+    condition: { left: "scenarioStarted", op: "eq", right: 0 },
+    then: [
+      { type: "set", target: "scenarioStarted", value: true },
+      { type: "set", target: "scenarioRunning", value: true },
+      { type: "clear-string", target: "input" },
+      {
+        type: "append-log",
+        target: "messages",
+        kind: "system",
+        template: "You are a staff Go engineer working in a real codebase. Be precise. Prefer incremental changes and cite tools when used.",
+      },
+      { type: "increment", target: "tokenCount", delta: 240 },
+      { type: "push-state", target: "callHistory", source: "tokenCount" },
+      {
+        type: "append-log",
+        target: "messages",
+        kind: "user",
+        template: "Add a new Go endpoint that exposes build stats and cache hits. Assume this codebase has MCPs.",
+      },
+      { type: "increment", target: "tokenCount", delta: 160 },
+      { type: "push-state", target: "callHistory", source: "tokenCount" },
+      { type: "set", target: "typing", value: true },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 700,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          { type: "set", target: "typing", value: false },
+          {
+            type: "append-log",
+            target: "messages",
+            kind: "assistant",
+            template: "I'll inspect the service layout, schema, and existing build metrics. Running MCPs.",
+          },
+          { type: "increment", target: "tokenCount", delta: 280 },
+          { type: "push-state", target: "callHistory", source: "tokenCount" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 1100,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          {
+            type: "append-log",
+            target: "messages",
+            kind: "tool",
+            template: "{\"mcp\":\"Outcoms OS\",\"action\":\"describe_runtime\",\"scope\":\"observability\"}",
+          },
+          { type: "increment", target: "tokenCount", delta: 220 },
+          { type: "push-state", target: "callHistory", source: "tokenCount" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 1400,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          {
+            type: "append-log",
+            target: "messages",
+            kind: "tool",
+            template: "{\"mcp\":\"GitHub\",\"action\":\"search\",\"query\":\"build stats handler go http\"}",
+          },
+          { type: "increment", target: "tokenCount", delta: 220 },
+          { type: "push-state", target: "callHistory", source: "tokenCount" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 1700,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          {
+            type: "append-log",
+            target: "messages",
+            kind: "tool",
+            template: "{\"mcp\":\"Postgres\",\"action\":\"describe\",\"table\":\"build_metrics\"}",
+          },
+          { type: "increment", target: "tokenCount", delta: 220 },
+          { type: "push-state", target: "callHistory", source: "tokenCount" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 2000,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          {
+            type: "append-log",
+            target: "messages",
+            kind: "tool",
+            template: "{\"mcp\":\"Linear\",\"action\":\"search\",\"query\":\"build stats endpoint\"}",
+          },
+          { type: "increment", target: "tokenCount", delta: 210 },
+          { type: "push-state", target: "callHistory", source: "tokenCount" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 2300,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          {
+            type: "append-log",
+            target: "messages",
+            kind: "tool",
+            template: "{\"mcp\":\"Slack\",\"action\":\"channel_lookup\",\"channel\":\"#platform-build\"}",
+          },
+          { type: "increment", target: "tokenCount", delta: 200 },
+          { type: "push-state", target: "callHistory", source: "tokenCount" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 2600,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          {
+            type: "append-log",
+            target: "messages",
+            kind: "tool",
+            template: "{\"mcp\":\"WebSearch\",\"action\":\"query\",\"query\":\"go http handler metrics endpoint patterns\"}",
+          },
+          { type: "increment", target: "tokenCount", delta: 230 },
+          { type: "push-state", target: "callHistory", source: "tokenCount" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 3000,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          { type: "set", target: "typing", value: true },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 3300,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          { type: "set", target: "typing", value: false },
+          {
+            type: "append-log",
+            target: "messages",
+            kind: "assistant",
+            template: "We'll add /v1/build-stats. Use BuildMetricsRepo and return cache hits from build_metrics. I'll sketch the handler and route.",
+          },
+          { type: "increment", target: "tokenCount", delta: 320 },
+          { type: "push-state", target: "callHistory", source: "tokenCount" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 3600,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          { type: "set", target: "typing", value: true },
+        ],
+      },
+    ],
+  },
+  {
+    type: "delay-then",
+    delayMs: 3900,
+    ops: [
+      {
+        type: "conditional",
+        condition: { left: "scenarioRunning", op: "eq", right: 1 },
+        then: [
+          { type: "set", target: "typing", value: false },
+          {
+            type: "append-log",
+            target: "messages",
+            kind: "assistant",
+            template: "Sketch:\\n\\nfunc (h *Handler) buildStats(w http.ResponseWriter, r *http.Request) {\\n    stats, err := h.BuildMetricsRepo.Latest(r.Context())\\n    if err != nil {\\n        http.Error(w, err.Error(), 500)\\n        return\\n    }\\n    render.JSON(w, map[string]any{\\n        \\\"cache_hits\\\": stats.CacheHits,\\n        \\\"builds\\\": stats.Builds,\\n    })\\n}\\n\\nWire it as GET /v1/build-stats.",
+          },
+          { type: "increment", target: "tokenCount", delta: 380 },
+          { type: "push-state", target: "callHistory", source: "tokenCount" },
+          { type: "set", target: "scenarioRunning", value: false },
+        ],
+      },
+    ],
+  },
+];
+
 const contextDemoV1: ComponentDef = {
   name: "Context Demo",
   description: "Chat interface merged with token tracking: type a message to see the context window JSON and token cost chart update in real time.",
@@ -830,80 +1122,17 @@ const contextDemoV1: ComponentDef = {
     { id: "toolPending", type: "boolean", initialValue: false },
     { id: "tokenCount", type: "number", initialValue: 400 },
     { id: "callHistory", type: "array", initialValue: [] },
+    { id: "scenarioRunning", type: "boolean", initialValue: false },
+    { id: "scenarioStarted", type: "boolean", initialValue: false },
   ],
   actions: [
     {
       id: "send",
-      ops: [
-        { type: "append-log", target: "messages", template: "", kind: "user", fromState: "input" },
-        { type: "clear-string", target: "input" },
-        { type: "set", target: "typing", value: true },
-        { type: "increment", target: "tokenCount", delta: 350 },
-        {
-          type: "delay-then",
-          delayMs: 900,
-          ops: [
-            {
-              type: "conditional",
-              condition: { left: "step", op: "eq", right: 0 },
-              then: [
-                { type: "set", target: "typing", value: false },
-                { type: "append-log", target: "messages", kind: "assistant", template: "Hi! I'm a simple assistant. I can see our entire conversation history — that's what gets sent to the API on each call." },
-                { type: "increment", target: "tokenCount", delta: 500 },
-                { type: "push-state", target: "callHistory", source: "tokenCount" },
-                { type: "increment", target: "step", delta: 1 },
-              ],
-              else: [
-                {
-                  type: "conditional",
-                  condition: { left: "step", op: "eq", right: 1 },
-                  then: [
-                    { type: "append-log", target: "messages", kind: "assistant", template: "Let me call token_count() to check the current context size…" },
-                    { type: "set", target: "toolPending", value: true },
-                    { type: "increment", target: "tokenCount", delta: 400 },
-                  ],
-                  else: [
-                    { type: "set", target: "typing", value: false },
-                    {
-                      type: "conditional",
-                      condition: { left: "step", op: "eq", right: 2 },
-                      then: [
-                        { type: "append-log", target: "messages", kind: "assistant", template: "Notice the context window growing? The JSON panel shows everything sent on every call." },
-                        { type: "increment", target: "step", delta: 1 },
-                      ],
-                      else: [
-                        { type: "append-log", target: "messages", kind: "assistant", template: "Each turn adds to the total. The chart shows how costs compound." },
-                        { type: "increment", target: "step", delta: 1 },
-                      ],
-                    },
-                    { type: "increment", target: "tokenCount", delta: 500 },
-                    { type: "push-state", target: "callHistory", source: "tokenCount" },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        {
-          type: "delay-then",
-          delayMs: 2200,
-          ops: [
-            {
-              type: "conditional",
-              condition: { left: "toolPending", op: "eq", right: 1 },
-              then: [
-                { type: "append-log", target: "messages", kind: "tool", template: '{"tokens":847,"messages":3}' },
-                { type: "append-log", target: "messages", kind: "assistant", template: "847 tokens in that JSON panel. The entire structure ships to the API every turn." },
-                { type: "set", target: "typing", value: false },
-                { type: "set", target: "toolPending", value: false },
-                { type: "increment", target: "tokenCount", delta: 800 },
-                { type: "push-state", target: "callHistory", source: "tokenCount" },
-                { type: "increment", target: "step", delta: 1 },
-              ],
-            },
-          ],
-        },
-      ],
+      ops: contextDemoV1ScenarioOps,
+    },
+    {
+      id: "autoPlay",
+      ops: contextDemoV1ScenarioOps,
     },
     {
       id: "reset",
@@ -915,6 +1144,8 @@ const contextDemoV1: ComponentDef = {
         { type: "set", target: "toolPending", value: false },
         { type: "set", target: "tokenCount", value: 400 },
         { type: "set", target: "callHistory", value: [] },
+        { type: "set", target: "scenarioRunning", value: false },
+        { type: "set", target: "scenarioStarted", value: false },
       ],
     },
   ],
@@ -931,7 +1162,17 @@ const contextDemoV1: ComponentDef = {
           children: [
             { id: "chat", type: "chat-feed", props: { source: "messages", showTimestamps: false } },
             { id: "typing-ind", type: "typing-indicator", props: { visibleWhen: "typing" } },
-            { id: "input-row", type: "chat-input", props: { inputState: "input", sendAction: "send", placeholder: "Type a message…" } },
+            {
+              id: "input-row",
+              type: "chat-input",
+              props: {
+                inputState: "input",
+                sendAction: "send",
+                placeholder: "Type a message…",
+                autoSendOnInput: true,
+                disabledWhen: "scenarioRunning",
+              },
+            },
           ],
         },
         {
@@ -961,6 +1202,7 @@ const contextDemoV1: ComponentDef = {
               type: "row",
               props: {},
               children: [
+                { id: "btn-autoplay", type: "button", props: { label: "Auto-play", action: "autoPlay", variant: "ghost", disabledWhen: "scenarioRunning" } },
                 { id: "btn-reset", type: "button", props: { label: "Reset", action: "reset", variant: "ghost" } },
               ],
             },
