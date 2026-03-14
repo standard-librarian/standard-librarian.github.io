@@ -282,6 +282,88 @@ function PanelBlock({ block, state, runAction, dispatchOps, def, scenarioHandler
   );
 }
 
+function ChatInputBlock({ block, state, runAction, dispatchOps, scenarioHandlers }: SubProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const stateId = block.props.inputState ?? "input";
+  const value = String(state[stateId] ?? "");
+  const autoSendOnInput = Boolean(block.props.autoSendOnInput);
+  const sendAction = block.props.sendAction ?? "send";
+  const awaitingSend = Boolean(state.scenarioAwaitingSend);
+  let isSendDisabled = block.props.disabledWhen
+    ? Boolean(state[block.props.disabledWhen])
+    : false;
+  if (scenarioHandlers.scenario && awaitingSend) {
+    isSendDisabled = false;
+  }
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    const len = value.length;
+    try {
+      input.setSelectionRange(len, len);
+    } catch {
+      // noop for unsupported input types
+    }
+    input.scrollLeft = input.scrollWidth;
+  }, [value]);
+
+  return (
+    <div className="demo-chat-input-row">
+      <input
+        ref={inputRef}
+        type="text"
+        className="demo-chat-input"
+        value={value}
+        placeholder={block.props.placeholder ?? "Type a message…"}
+        onChange={(e) => {
+          const nextValue = e.target.value;
+          if (autoSendOnInput && scenarioHandlers.scenario) return;
+          dispatchOps([{ type: "set-string", target: stateId, value: nextValue }]);
+        }}
+        onKeyDown={(e) => {
+          if (autoSendOnInput && scenarioHandlers.scenario) {
+            if (awaitingSend) {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                runAction(sendAction);
+              }
+              return;
+            }
+            if (e.key.length === 1 || e.key === "Enter" || e.key === "Backspace") {
+              e.preventDefault();
+              scenarioHandlers.advanceUserChar(stateId, true);
+            }
+            return;
+          }
+          if (isSendDisabled) return;
+          if (e.key === "Enter" && !e.shiftKey && value.trim()) {
+            e.preventDefault();
+            runAction(sendAction);
+          }
+        }}
+      />
+      <button
+        className="demo-btn"
+        disabled={isSendDisabled}
+        onClick={() => {
+          if (autoSendOnInput && scenarioHandlers.scenario) {
+            if (awaitingSend) {
+              runAction(sendAction);
+              return;
+            }
+            scenarioHandlers.startScenario(false);
+            return;
+          }
+          value.trim() && runAction(sendAction);
+        }}
+      >
+        {block.props.label ?? "Send"}
+      </button>
+    </div>
+  );
+}
+
 function renderBlock(
   block: BlockDef,
   state: State,
@@ -336,7 +418,7 @@ function renderBlock(
       return (
         <div key={block.id} className="demo-token-bar-wrap">
           <div className="demo-token-bar">
-            <div className={fillClass} style={{ width: `${pct * 100}%` }} />
+            <div className={fillClass} style={{ transform: `scaleX(${pct})` }} />
           </div>
           {label && <span className="demo-token-label">{label}</span>}
         </div>
@@ -463,54 +545,16 @@ function renderBlock(
     }
 
     case "chat-input": {
-      const stateId = block.props.inputState ?? "input";
-      const value = String(state[stateId] ?? "");
-      const isSendDisabled = block.props.disabledWhen
-        ? Boolean(state[block.props.disabledWhen])
-        : false;
-      const autoSendOnInput = Boolean(block.props.autoSendOnInput);
-      const sendAction = block.props.sendAction ?? "send";
       return (
-        <div key={block.id} className="demo-chat-input-row">
-          <input
-            type="text"
-            className="demo-chat-input"
-            value={value}
-            placeholder={block.props.placeholder ?? "Type a message…"}
-            onChange={(e) => {
-              const nextValue = e.target.value;
-              if (autoSendOnInput && scenarioHandlers.scenario) return;
-              dispatchOps([{ type: "set-string", target: stateId, value: nextValue }]);
-            }}
-            onKeyDown={(e) => {
-              if (autoSendOnInput && scenarioHandlers.scenario) {
-                if (e.key.length === 1 || e.key === "Enter" || e.key === "Backspace") {
-                  e.preventDefault();
-                  scenarioHandlers.advanceUserChar(stateId, true);
-                }
-                return;
-              }
-              if (isSendDisabled) return;
-              if (e.key === "Enter" && !e.shiftKey && value.trim()) {
-                e.preventDefault();
-                runAction(sendAction);
-              }
-            }}
-          />
-          <button
-            className="demo-btn"
-            disabled={isSendDisabled}
-            onClick={() => {
-              if (autoSendOnInput && scenarioHandlers.scenario) {
-                scenarioHandlers.startScenario(false);
-                return;
-              }
-              value.trim() && runAction(sendAction);
-            }}
-          >
-            {block.props.label ?? "Send"}
-          </button>
-        </div>
+        <ChatInputBlock
+          key={block.id}
+          block={block}
+          state={state}
+          runAction={runAction}
+          dispatchOps={dispatchOps}
+          def={def}
+          scenarioHandlers={scenarioHandlers}
+        />
       );
     }
 
@@ -562,6 +606,14 @@ function renderBlock(
       } else {
         text = block.props.content ?? "";
       }
+      const heightProp = block.props.height;
+      const height =
+        heightProp === undefined
+          ? "240px"
+          : typeof heightProp === "number"
+          ? `${heightProp}px`
+          : heightProp;
+      const isAutoHeight = height === "auto";
       return (
         <div key={block.id} className="code-block">
           {block.props.language && (
@@ -571,9 +623,9 @@ function renderBlock(
           )}
           <pre
             style={{
-              overflowY: "auto",
+              overflowY: isAutoHeight ? "visible" : "auto",
               overflowX: "auto",
-              height: "240px",
+              height,
               margin: 0,
               maxWidth: "100%",
             }}
@@ -757,6 +809,7 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
   const scenario = definition.scenario;
   const scenarioTimersRef = useRef<number[]>([]);
   const scheduledStepRef = useRef<number | null>(null);
+  const scheduledSendRef = useRef<number | null>(null);
 
   const clearScenarioTimers = useCallback(() => {
     scenarioTimersRef.current.forEach((t) => clearTimeout(t));
@@ -788,6 +841,7 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
         { type: "set", target: "scenarioRunning", value: true },
         { type: "set", target: "autoPlay", value: autoPlay },
         { type: "set", target: "scenarioChar", value: 0 },
+        { type: "set", target: "scenarioAwaitingSend", value: false },
       ];
       const inputStateId = scenario.inputStateId ?? "input";
       ops.push({ type: "clear-string", target: inputStateId });
@@ -819,6 +873,7 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
       }
       if (!step || step.type !== "user") return;
       const currentIndex = started ? Number(state.scenarioChar ?? 0) : 0;
+      if (currentIndex >= step.text.length) return;
       const nextIndex = Math.min(step.text.length, currentIndex + 1);
       const nextValue = step.text.slice(0, nextIndex);
       const ops: Op[] = [
@@ -829,21 +884,50 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
         ops.unshift({ type: "set", target: "autoPlay", value: false });
       }
       if (nextIndex >= step.text.length) {
-        ops.push({ type: "append-log", target: "messages", kind: "user", template: step.text });
-        ops.push({ type: "clear-string", target: stateId });
-        ops.push({ type: "set", target: "scenarioChar", value: 0 });
-        ops.push({ type: "increment", target: "scenarioStep", delta: 1 });
-        appendTokenOps(ops, step.tokenDelta);
+        ops.push({ type: "set", target: "scenarioAwaitingSend", value: true });
       }
       dispatchOps(ops);
     },
-    [scenario, state, dispatchOps, appendTokenOps, startScenario]
+    [scenario, state, dispatchOps, startScenario]
   );
+
+  const commitUserStep = useCallback(() => {
+    if (!scenario) return;
+    const steps = scenario.steps ?? [];
+    const stepIndex = Number(state.scenarioStep ?? 0);
+    const step = steps[stepIndex];
+    if (!step || step.type !== "user") return;
+    const inputStateId = scenario.inputStateId ?? "input";
+    const ops: Op[] = [
+      { type: "append-log", target: "messages", kind: "user", template: step.text },
+      { type: "clear-string", target: inputStateId },
+      { type: "set", target: "scenarioChar", value: 0 },
+      { type: "set", target: "scenarioAwaitingSend", value: false },
+      { type: "increment", target: "scenarioStep", delta: 1 },
+    ];
+    appendTokenOps(ops, step.tokenDelta);
+    dispatchOps(ops);
+    scheduledSendRef.current = null;
+  }, [scenario, state.scenarioStep, dispatchOps, appendTokenOps]);
 
   const runAction = useCallback(
     (id: string) => {
-      if (scenario && (id === "send" || id === "autoPlay")) {
-        startScenario(id === "autoPlay");
+      if (scenario && id === "send") {
+        if (state.scenarioRunning && state.scenarioAwaitingSend) {
+          commitUserStep();
+          return;
+        }
+        if (!state.scenarioStarted) {
+          startScenario(false);
+          return;
+        }
+      }
+      if (scenario && id === "autoPlay") {
+        if (!state.scenarioStarted) {
+          startScenario(true);
+          return;
+        }
+        dispatchOps([{ type: "set", target: "autoPlay", value: true }]);
         return;
       }
       const ops = definition.actions.find((a) => a.id === id)?.ops ?? [];
@@ -862,13 +946,14 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
       }
       if (syncBatch.length) dispatch({ ops: syncBatch });
     },
-    [definition, scenario, startScenario]
+    [definition, scenario, startScenario, state, commitUserStep, dispatchOps]
   );
 
   useEffect(() => {
     if (!scenario || !state.scenarioRunning) {
       clearScenarioTimers();
       scheduledStepRef.current = null;
+      scheduledSendRef.current = null;
       return;
     }
     const steps = scenario.steps ?? [];
@@ -878,8 +963,10 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
       dispatchOps([
         { type: "set", target: "scenarioRunning", value: false },
         { type: "set", target: "autoPlay", value: false },
+        { type: "set", target: "scenarioAwaitingSend", value: false },
       ]);
       scheduledStepRef.current = null;
+      scheduledSendRef.current = null;
       return;
     }
     if (step.type === "user") {
@@ -957,6 +1044,33 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
     state.scenarioStep,
     state.scenarioChar,
     advanceUserChar,
+  ]);
+
+  useEffect(() => {
+    if (!scenario || !state.autoPlay || !state.scenarioRunning || !state.scenarioAwaitingSend) {
+      scheduledSendRef.current = null;
+      return;
+    }
+    const steps = scenario.steps ?? [];
+    const stepIndex = Number(state.scenarioStep ?? 0);
+    const step = steps[stepIndex];
+    if (!step || step.type !== "user") return;
+    if (Number(state.scenarioChar ?? 0) < step.text.length) return;
+    if (scheduledSendRef.current === stepIndex) return;
+    scheduledSendRef.current = stepIndex;
+    const delayMs = scenario.autoPlayDelayMs ?? 600;
+    const timeoutId = window.setTimeout(() => {
+      commitUserStep();
+    }, delayMs);
+    scenarioTimersRef.current.push(timeoutId);
+  }, [
+    scenario,
+    state.autoPlay,
+    state.scenarioRunning,
+    state.scenarioAwaitingSend,
+    state.scenarioStep,
+    state.scenarioChar,
+    commitUserStep,
   ]);
 
   useEffect(() => {

@@ -1322,7 +1322,11 @@ main {
     height: 100%;
     background: #a6e3a1;
     border-radius: 999px;
-    transition: width 0.1s linear;
+    width: 100%;
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
 }
 
 /* Variant: fills as requests are consumed (fixed/sliding window) */

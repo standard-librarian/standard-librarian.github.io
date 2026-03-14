@@ -589,7 +589,7 @@ const agentMemory: ComponentDef = {
           type: "panel",
           props: { title: "Context Window (sent each call)", collapsible: true },
           children: [
-            { id: "ctx-display", type: "code-display", props: { source: "messages", language: "json" } },
+            { id: "ctx-display", type: "code-display", props: { source: "messages", language: "json", height: "auto" } },
           ],
         },
       ],
@@ -619,6 +619,7 @@ const agentMemoryV2: ComponentDef = {
     { id: "autoPlay", type: "boolean", initialValue: false },
     { id: "scenarioRunning", type: "boolean", initialValue: false },
     { id: "scenarioStarted", type: "boolean", initialValue: false },
+    { id: "scenarioAwaitingSend", type: "boolean", initialValue: false },
   ],
   actions: [
     {
@@ -642,6 +643,7 @@ const agentMemoryV2: ComponentDef = {
         { type: "set", target: "autoPlay", value: false },
         { type: "set", target: "scenarioRunning", value: false },
         { type: "set", target: "scenarioStarted", value: false },
+        { type: "set", target: "scenarioAwaitingSend", value: false },
       ],
     },
   ],
@@ -859,6 +861,7 @@ const contextDemoV1: ComponentDef = {
     { id: "autoPlay", type: "boolean", initialValue: false },
     { id: "scenarioRunning", type: "boolean", initialValue: false },
     { id: "scenarioStarted", type: "boolean", initialValue: false },
+    { id: "scenarioAwaitingSend", type: "boolean", initialValue: false },
   ],
   actions: [
     {
@@ -884,6 +887,7 @@ const contextDemoV1: ComponentDef = {
         { type: "set", target: "autoPlay", value: false },
         { type: "set", target: "scenarioRunning", value: false },
         { type: "set", target: "scenarioStarted", value: false },
+        { type: "set", target: "scenarioAwaitingSend", value: false },
       ],
     },
   ],
