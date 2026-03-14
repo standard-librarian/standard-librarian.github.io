@@ -30,8 +30,8 @@ export const metadata: Metadata = {
     type: "website"
   },
   icons: {
-    icon: "/mdht.png",
-    apple: "/mdht.png"
+    icon: "/icon.png",
+    apple: "/apple-icon.png"
   },
   twitter: {
     card: "summary_large_image",
