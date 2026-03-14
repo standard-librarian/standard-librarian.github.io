@@ -2,14 +2,14 @@
 title: "What the LLM actually sees"
 date: "2026-03-14"
 tags: ["ai", "llm", "explainer"]
-summary: "What an LLM sees depends on API mode: stateless message arrays or provider-managed state. Here’s how context actually works in 2026, and where long-context cost thresholds really begin."
+summary: "The model sees exactly what you send it — nothing more. How context actually works, why it gets expensive, and what to do about it."
 ---
 
-In 2026, this depends on the API mode you choose. In stateless message APIs, the model has no memory between calls unless your app re-sends prior turns. In stateful APIs, the provider can retain conversation state server-side so you can continue from a stored response/thread.
+The model sees exactly what you send it. No persistent memory, no background awareness of prior sessions. What you call a "conversation" is a text structure your app assembles and re-uploads on every request.
 
-What you think of as a "conversation" is either: (a) your app serialising prior exchange into a messages list and re-uploading it each request, or (b) your app sending only the new turn while the provider resumes from previously stored state. Both patterns are used in production; they trade control for convenience differently.
+Two patterns: (a) stateless — your app serialises the full exchange into a messages array and re-sends it each turn; (b) stateful — the provider holds history server-side and you continue from a stored reference. Both are in production use. The tradeoff is control vs. convenience.
 
-The messages array is still the foundation for understanding context, costs, and failure modes — even when a provider offers stateful continuation on top.
+The messages array is the foundation either way. Even stateful APIs manage an array under the hood. Understanding it is what lets you reason about costs, failure modes, and the limits of context management.
 
 ---
 
@@ -48,9 +48,9 @@ The context window **grows with every turn**. Not by the size of the new message
 
 <DynamicComponent id="agent-memory-v2" />
 
-Notice what's happening in the right panel. Every time you send a message, the full array gets longer. Turn 3 doesn't just contain turn 3 — it contains turns 1, 2, and 3. By turn 10 you're sending 10× more data than you were at turn 1. The model doesn't cache your history; your app reconstructs and re-sends it every time.
+Watch the right panel. Every send extends the array — turn 3 ships turns 1, 2, and 3. By turn 10 you're sending 10× the data from turn 1. And the model isn't keeping score: each call it wakes up fresh, reads the whole array, reasons, responds. Groundhog Day. Your app is the one remembering; the model is stateless.
 
-This is why long chat sessions get expensive fast, and why "just keep chatting" is not a scalable architecture.
+Long sessions get expensive fast. "Just keep chatting" is not an architecture.
 
 ---
 
@@ -87,9 +87,9 @@ sequenceDiagram
     end
 ```
 
-In stateless flows, the expensive step is `POST /messages (full array, every turn)`. Your app is responsible for maintaining, loading, and re-uploading conversation history. In stateful flows, the server can hold that history and let you continue by referencing stored state (for example, continuing from a prior response id), which removes the need to resend the full array each turn.
+In stateless flows, the expensive step is obvious: `POST /messages (full array, every turn)`. Your app owns the history — load, append, re-upload, repeat. In stateful flows, the provider stores context server-side and you continue from a reference; no full re-upload per turn.
 
-Stateless control is a feature. It means you decide exactly what the model sees: redact turns, inject context mid-conversation, summarise older segments, or swap in retrieved documents. Stateful continuation is also useful, but it shifts some control and observability to the provider-managed layer.
+Stateless is a feature, not just a limitation. You control exactly what the model sees — redact turns, inject context mid-session, summarise and compress older segments, swap in retrieved documents. Stateful shifts that control to the provider. Which you want depends on what you're building.
 
 ---
 
@@ -178,22 +178,22 @@ No single right answer. But you need one.
 
 A third option — **RAG (retrieval-augmented generation)** — avoids storing conversation history altogether. Instead of replaying the conversation, you embed each turn and retrieve the semantically relevant ones at query time. This is what production chatbots with millions of users do. It's more infrastructure, but it's the only approach that scales to arbitrarily long sessions.
 
-**Prompt caching** works when the expensive part of your context is stable across requests — a large system prompt, a reference document, a codebase. Most APIs let you mark a prefix as cacheable. Anthropic charges ~10% of the original write cost on cache hits. You're still paying for cached tokens, just much less. Effective only when that prefix doesn't change; a single token mutation invalidates the cache.
+**Prompt caching** is effective but commonly misunderstood. It reduces compute cost — the provider doesn't re-process stable prefixes — but it does not reduce how much data you send. Your app still ships the full array every request; the provider hashes it, finds the cached KV state for the matched prefix, and skips re-processing it. Anthropic charges ~10% of the original write cost on cache hits. A single token mutation invalidates the prefix. Effective when the stable part is large; not a bandwidth solution.
 
-**Context compaction and stateful APIs** are another path. Provider-managed state can eliminate the reconstruct-and-re-upload loop by letting you continue from stored history. OpenAI's Responses flow can do this when state is stored and you continue from a prior response/thread reference; Anthropic also supports server-side context management features. The tradeoff is control and transparency: depending on product mode, you may have less ability to inspect, surgically redact, or deterministically reconstruct the exact prompt seen by the model. For many chatbots that’s acceptable; for agent systems with strict auditability, teams often keep explicit context assembly.
+**Context compaction and stateful APIs** are another path. Provider-managed state can eliminate the reconstruct-and-re-upload loop by letting you continue from stored history. OpenAI's Responses flow can do this when state is stored and you continue from a prior response/thread reference; Anthropic also supports server-side context management features. The tradeoff is control and transparency: depending on product mode, you may have less ability to inspect, surgically redact, or deterministically reconstruct the exact prompt seen by the model. For many chatbots that's acceptable; for agent systems with strict auditability, teams often keep explicit context assembly.
 
 ---
 
 ## Tool calls: the hidden cost
 
-If you're using tool use / function calling, there's a wrinkle: tool calls and results are also messages. Every time the model decides to call a tool, your app needs to:
+Tool use adds a wrinkle that trips up a lot of people. When the model outputs a tool call, generation is finished — not paused. The model isn't waiting for your function to return. It's done. A new request starts from scratch when you send back the result, with the full history plus the tool output appended. Every tool call is a full API round-trip. Every round-trip ships the whole context.
 
-1. Append the model's tool-call request as an `assistant` message
+The steps:
+
+1. Model outputs a tool-call request → append as `assistant` message
 2. Run the tool
 3. Append the result as a `tool` message
-4. Call the API again with the extended array
-
-A single agentic "step" that involves 3 tool calls adds 6 messages to the context before the model sends a final reply. In a 10-step agent loop with 3 tool calls per step, you're sending 60+ messages on the final call — many of which are just scaffolding the model generated to reason through intermediate steps.
+4. New API call with the extended array
 
 ```go
 // What one tool-call cycle looks like in the messages slice
@@ -225,6 +225,8 @@ messages := []anthropic.MessageParam{
 }
 ```
 
+A single agentic step with 3 tool calls adds 6 messages to the context before the model sends a final reply. In a 10-step agent loop with 3 tool calls per step, you're sending 60+ messages on the final call — many of which are just scaffolding the model generated to reason through intermediate steps.
+
 If your agent is slow or expensive and you can't figure out why, count your messages. The answer is usually there.
 
 One aside: MCP (Model Context Protocol) is standardising the format of tool-call messages across providers. If you're building multi-provider agents, the wire format is converging even if the SDK APIs haven't caught up yet.
@@ -235,14 +237,14 @@ One aside: MCP (Model Context Protocol) is standardising the format of tool-call
 
 A few rules that fall out of all this:
 
-**Keep system prompts surgical.** Every token in the system prompt is paid on every call. A 1,200-token system prompt that hedges is 3× the cost of a 400-token one that's precise. Write it like you're paying per word — because you are.
+**Keep system prompts surgical.** Every token in the system prompt costs on every call. 1,200 tokens of hedging is 3× the cost of 400 tokens that are precise. Write it like you're paying per word — you are.
 
-**Log the full array, not just the last message.** When something goes wrong in an agent loop, you need to see exactly what the model was given. The surprising input is almost always buried in an earlier turn.
+**Log the full array, not just the last message.** When an agent loop breaks, you need to see exactly what the model was given. The surprising input is almost always buried in an earlier turn.
 
-**Budget by turns, not by session.** Set a hard limit on how many turns a session can have before you force a summarisation or reset. Don't let users discover your context limit by accident.
+**Budget by turns, not by session.** Hard limit on how many turns before you force summarisation or reset. Don't let users discover your context limit by accident.
 
-**The model doesn't know what it doesn't see.** If you prune a message, the model reasons as if it never happened. This is a superpower (you can clean up bad turns) and a footgun (you can accidentally hide information the model needed).
+**The model doesn't know what it doesn't see.** Prune a message and the model reasons as if it never happened. Superpower when you're cleaning up bad turns. Footgun when you accidentally hide what it needed.
 
 ---
 
-The context window is still the most concrete, measurable resource in an LLM application. Everything else — prompt quality, temperature, model choice — is softer. This one is arithmetic. Know what you're sending (or delegating to provider-managed state), track how it grows, and have a plan for when it doesn't fit anymore.
+The context window is the most concrete, measurable thing in an LLM application. Everything else — prompt quality, model choice, temperature — is fuzzy. This one is arithmetic. Know what you're sending, or what you're delegating. Track how it grows. Have a plan for when it doesn't fit.

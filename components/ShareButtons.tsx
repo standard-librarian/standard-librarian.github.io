@@ -19,14 +19,6 @@ export function ShareButtons({ title, url }: ShareButtonsProps) {
       >
         Share on X
       </a>
-      <a
-        href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="share-btn"
-      >
-        Share on LinkedIn
-      </a>
     </div>
   );
 }

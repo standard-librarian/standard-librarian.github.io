@@ -795,7 +795,7 @@ function renderBlock(
 
       if (data.length === 0) {
         return (
-          <svg key={block.id} viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+          <svg key={block.id} viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block", aspectRatio: `${W} / ${H}` }}>
             <line x1={PL} y1={PT} x2={PL} y2={PT + plotH} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
             <line x1={PL} y1={PT + plotH} x2={W - PR} y2={PT + plotH} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
             <text x={(PL + W - PR) / 2} y={PT + plotH / 2} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.2)">send a message to start</text>
@@ -808,7 +808,7 @@ function renderBlock(
       }
 
       return (
-        <svg key={block.id} viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+        <svg key={block.id} viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block", aspectRatio: `${W} / ${H}` }}>
           {gridVals.map((v, i) => (
             <line key={i} x1={PL} y1={yAt(v)} x2={W - PR} y2={yAt(v)} stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
           ))}
@@ -1074,6 +1074,36 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
           { type: "increment", target: "scenarioStep", delta: 1 },
         ];
         appendTokenOps(ops, step.tokenDelta);
+        // Tool results trigger a new API request with the full context (tool result appended).
+        // Capture that payload into contextRequests so request-log panels update.
+        if (step.type === "tool") {
+          const existing = (state.messages as LogEntry[]) ?? [];
+          const toolEntry: LogEntry = { time: Date.now(), kind: "tool", message: step.text };
+          const nextMessages = [toolEntry, ...existing];
+          const requestPayload = buildContextPayload(nextMessages);
+          const requestCount = Array.isArray(state.contextRequests)
+            ? (state.contextRequests as ContextRequestItem[]).length + 1
+            : 1;
+          const tokenStateId = scenario.tokenStateId;
+          const currentToken =
+            tokenStateId && typeof state[tokenStateId] === "number"
+              ? (state[tokenStateId] as number)
+              : undefined;
+          const nextToken =
+            currentToken !== undefined && step.tokenDelta !== undefined
+              ? currentToken + step.tokenDelta
+              : currentToken;
+          ops.push({
+            type: "push",
+            target: "contextRequests",
+            value: {
+              id: Date.now(),
+              title: `Request ${requestCount}`,
+              content: requestPayload,
+              tokenCount: nextToken,
+            },
+          });
+        }
         dispatchOps(ops);
       }, delayMs);
       scenarioTimersRef.current.push(timeoutId);

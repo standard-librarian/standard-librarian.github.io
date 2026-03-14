@@ -740,9 +740,9 @@ const agentMemoryV2: ComponentDef = {
         {
           id: "right-panel",
           type: "panel",
-          props: { title: "Context Window (sent each call)", collapsible: true },
+          props: { title: "Context window (sent each call)", collapsible: true },
           children: [
-            { id: "ctx-display", type: "code-display", props: { source: "messages", language: "json" } },
+            { id: "ctx-display", type: "request-log", props: { source: "contextRequests" } },
           ],
         },
       ],
