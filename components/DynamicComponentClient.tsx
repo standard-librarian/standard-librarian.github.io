@@ -9,12 +9,16 @@ import type {
   Condition,
   LogEntry,
   MessageItem,
+  ContextRequestItem,
   ScenarioDef,
   ScenarioStep,
 } from "@/types/component";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
 
-type State = Record<string, number | boolean | LogEntry[] | number[] | string | MessageItem[]>;
+type State = Record<
+  string,
+  number | boolean | LogEntry[] | number[] | string | MessageItem[] | ContextRequestItem[] | unknown[]
+>;
 
 function resolveConditionOperand(
   val: string | number,
@@ -103,12 +107,12 @@ function applyOps(state: State, ops: Op[]): State {
         break;
       }
       case "push": {
-        const existing = (s[op.target] as MessageItem[]) ?? [];
-        s = { ...s, [op.target]: [...existing, op.value as MessageItem] };
+        const existing = Array.isArray(s[op.target]) ? (s[op.target] as unknown[]) : [];
+        s = { ...s, [op.target]: [...existing, op.value] };
         break;
       }
       case "pop": {
-        const existing = (s[op.target] as MessageItem[]) ?? [];
+        const existing = Array.isArray(s[op.target]) ? (s[op.target] as unknown[]) : [];
         s = { ...s, [op.target]: existing.slice(0, -1) };
         break;
       }
@@ -204,6 +208,14 @@ function formatTime(ts: number): string {
   );
 }
 
+function buildContextPayload(entries: LogEntry[]): string {
+  const ordered = [...entries].reverse().map((entry) => ({
+    role: entry.kind,
+    content: entry.message,
+  }));
+  return JSON.stringify(ordered, null, 2);
+}
+
 function getFirstNonSystemIndex(steps: ScenarioStep[]): number {
   let idx = 0;
   while (steps[idx] && steps[idx].type === "system") idx += 1;
@@ -254,7 +266,7 @@ function TabsBlock({ block, state, runAction, dispatchOps, def, scenarioHandlers
 function PanelBlock({ block, state, runAction, dispatchOps, def, scenarioHandlers }: SubProps) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="demo-panel">
+    <div className={`demo-panel${block.props.fillHeight ? " demo-panel-fill" : ""}`}>
       {block.props.title && (
         <div className="demo-panel-title">
           <span>{block.props.title}</span>
@@ -273,6 +285,8 @@ function PanelBlock({ block, state, runAction, dispatchOps, def, scenarioHandler
             flexDirection: "column",
             gap: "12px",
             minWidth: 0,
+            flex: block.props.fillHeight ? "1 1 auto" : undefined,
+            minHeight: block.props.fillHeight ? 0 : undefined,
           }}
         >
           {block.children?.map((c) => renderBlock(c, state, runAction, dispatchOps, def, scenarioHandlers))}
@@ -636,6 +650,27 @@ function renderBlock(
       );
     }
 
+    case "request-log": {
+      const raw = (state[block.props.source ?? "contextRequests"] as ContextRequestItem[]) ?? [];
+      return (
+        <div key={block.id} className="demo-request-log">
+          {raw.map((item, i) => (
+            <details key={item.id ?? i} className="demo-request-item">
+              <summary className="demo-request-summary">
+                {item.title ?? `Request ${i + 1}`}
+                {item.tokenCount !== undefined
+                  ? ` · ${Math.round(item.tokenCount).toLocaleString("en-US")} tokens`
+                  : ""}
+              </summary>
+              <pre className="demo-request-pre">
+                <code>{item.content}</code>
+              </pre>
+            </details>
+          ))}
+        </div>
+      );
+    }
+
     case "split":
       return (
         <div key={block.id} className="demo-split">
@@ -898,8 +933,32 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
     const step = steps[stepIndex];
     if (!step || step.type !== "user") return;
     const inputStateId = scenario.inputStateId ?? "input";
+    const existing = (state.messages as LogEntry[]) ?? [];
+    const userEntry: LogEntry = { time: Date.now(), kind: "user", message: step.text };
+    const nextMessages = [userEntry, ...existing];
+    const requestPayload = buildContextPayload(nextMessages);
+    const requestCount = Array.isArray(state.contextRequests)
+      ? (state.contextRequests as ContextRequestItem[]).length + 1
+      : 1;
+    const tokenStateId = scenario.tokenStateId;
+    const currentToken =
+      tokenStateId && typeof state[tokenStateId] === "number"
+        ? (state[tokenStateId] as number)
+        : undefined;
+    const nextToken =
+      currentToken !== undefined ? currentToken + (step.tokenDelta ?? 0) : undefined;
     const ops: Op[] = [
       { type: "append-log", target: "messages", kind: "user", template: step.text },
+      {
+        type: "push",
+        target: "contextRequests",
+        value: {
+          id: Date.now(),
+          title: `Request ${requestCount}`,
+          content: requestPayload,
+          tokenCount: nextToken,
+        },
+      },
       { type: "clear-string", target: inputStateId },
       { type: "set", target: "scenarioChar", value: 0 },
       { type: "set", target: "scenarioAwaitingSend", value: false },
@@ -908,7 +967,7 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
     appendTokenOps(ops, step.tokenDelta);
     dispatchOps(ops);
     scheduledSendRef.current = null;
-  }, [scenario, state.scenarioStep, dispatchOps, appendTokenOps]);
+  }, [scenario, state, dispatchOps, appendTokenOps]);
 
   const runAction = useCallback(
     (id: string) => {

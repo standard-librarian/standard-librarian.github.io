@@ -514,6 +514,8 @@ const agentMemory: ComponentDef = {
   state: [
     { id: "input", type: "string", initialValue: "" },
     { id: "messages", type: "log", initialValue: [] },
+    { id: "contextRequests", type: "array", initialValue: [] },
+    { id: "contextRequests", type: "array", initialValue: [] },
     { id: "step", type: "number", initialValue: 0 },
     { id: "typing", type: "boolean", initialValue: false },
   ],
@@ -562,6 +564,8 @@ const agentMemory: ComponentDef = {
       id: "reset",
       ops: [
         { type: "set", target: "messages", value: [] },
+        { type: "set", target: "contextRequests", value: [] },
+        { type: "set", target: "contextRequests", value: [] },
         { type: "set", target: "input", value: "" },
         { type: "set", target: "step", value: 0 },
         { type: "set", target: "typing", value: false },
@@ -587,9 +591,9 @@ const agentMemory: ComponentDef = {
         {
           id: "right-panel",
           type: "panel",
-          props: { title: "Context Window (sent each call)", collapsible: true },
+          props: { title: "Context Window (sent each call)", collapsible: true, fillHeight: true },
           children: [
-            { id: "ctx-display", type: "code-display", props: { source: "messages", language: "json", height: "auto" } },
+            { id: "ctx-display", type: "request-log", props: { source: "contextRequests" } },
           ],
         },
       ],
@@ -1031,9 +1035,9 @@ const contextDemoV1: ComponentDef = {
             {
               id: "ctx-panel",
               type: "panel",
-              props: { title: "Context window (sent each call)", collapsible: true },
+              props: { title: "Context window (sent each call)", collapsible: true, fillHeight: true },
               children: [
-                { id: "ctx-display", type: "code-display", props: { source: "messages", language: "json" } },
+                { id: "ctx-display", type: "request-log", props: { source: "contextRequests" } },
               ],
             },
             {

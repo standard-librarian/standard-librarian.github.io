@@ -15,6 +15,13 @@ export type MessageItem = {
   toolName?: string;
 };
 
+export type ContextRequestItem = {
+  id: number;
+  title?: string;
+  content: string;
+  tokenCount?: number;
+};
+
 export type StateVar = {
   id: string;
   type: "number" | "boolean" | "log" | "timestamps" | "string" | "array";
@@ -24,7 +31,9 @@ export type StateVar = {
     | LogEntry[]
     | number[]
     | string
-    | MessageItem[];
+    | MessageItem[]
+    | ContextRequestItem[]
+    | unknown[];
   min?: number;
   max?: number;
 };
@@ -139,6 +148,7 @@ export type BlockType =
   | "tabs"
   | "panel"
   | "code-display"
+  | "request-log"
   | "mermaid-block"
   | "svg-block"
   | "line-chart"
@@ -193,6 +203,7 @@ export type BlockProps = {
   // Panel/card
   title?: string;
   collapsible?: boolean;
+  fillHeight?: boolean;
   // Image
   src?: string;
   alt?: string;

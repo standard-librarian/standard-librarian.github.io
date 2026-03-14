@@ -1632,6 +1632,7 @@ main {
 }
 .demo-split > .demo-body {
     min-height: 0;
+    height: 100%;
 }
 .demo-split .demo-chat-feed {
     flex: 1 1 0;
@@ -1659,6 +1660,12 @@ main {
     border-radius: 8px;
     overflow: hidden;
     min-width: 0;
+}
+.demo-panel-fill {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
 }
 .demo-panel-title {
     display: flex;
@@ -1803,6 +1810,42 @@ main {
     border: 1px solid var(--line);
     border-radius: 4px;
     font-size: 0.88rem;
+}
+
+.demo-request-log {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+.demo-request-item {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-2);
+    overflow: hidden;
+}
+.demo-request-summary {
+    cursor: pointer;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    list-style: none;
+}
+.demo-request-summary::-webkit-details-marker {
+    display: none;
+}
+.demo-request-pre {
+    margin: 0;
+    padding: 12px;
+    max-width: 100%;
+    overflow: auto;
+    font-size: 0.82rem;
 }
 
 @media (max-width: 720px) {
