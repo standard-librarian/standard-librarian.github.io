@@ -137,7 +137,7 @@ export function FixedWindowDemo({
         <div className="demo-token-bar">
           <div
             className="demo-token-bar-fill demo-token-bar-fill-used"
-            style={{ width: `${fillPct * 100}%` }}
+            style={{ transform: `scaleX(${fillPct})` }}
           />
         </div>
       </div>
