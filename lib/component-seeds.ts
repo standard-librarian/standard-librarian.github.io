@@ -1,5 +1,5 @@
 import { createComponent, upsertComponent } from "@/lib/components";
-import type { ComponentDef, Op } from "@/types/component";
+import type { ComponentDef } from "@/types/component";
 
 const tokenBucket: ComponentDef = {
   name: "Token Bucket Rate Limiter",
@@ -605,101 +605,6 @@ const agentMemory: ComponentDef = {
   ],
 };
 
-const agentMemoryV2ScenarioOps: Op[] = [
-  {
-    type: "conditional",
-    condition: { left: "scenarioStarted", op: "eq", right: 0 },
-    then: [
-      { type: "set", target: "scenarioStarted", value: true },
-      { type: "set", target: "scenarioRunning", value: true },
-      { type: "clear-string", target: "input" },
-      {
-        type: "append-log",
-        target: "messages",
-        kind: "system",
-        template: "You are a senior Go engineer inside a large monorepo. Use terse, practical responses. Prefer concurrency-safe patterns.",
-      },
-      {
-        type: "append-log",
-        target: "messages",
-        kind: "user",
-        template: "We are leaking goroutines in the request pipeline of a Go API. Where should I look first?",
-      },
-      { type: "set", target: "typing", value: true },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 700,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          { type: "set", target: "typing", value: false },
-          {
-            type: "append-log",
-            target: "messages",
-            kind: "assistant",
-            template: "Start with context cancellation and channel drains. I'll scan for goroutine spawns tied to request scope.",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 1300,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          {
-            type: "append-log",
-            target: "messages",
-            kind: "tool",
-            template: "{\"mcp\":\"GitHub\",\"action\":\"search\",\"query\":\"go routine leak context.WithCancel\"}",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 1700,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          { type: "set", target: "typing", value: true },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 2300,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          { type: "set", target: "typing", value: false },
-          {
-            type: "append-log",
-            target: "messages",
-            kind: "assistant",
-            template: "Leak is likely in streamProcessor where context is not canceled on early return. Wrap the goroutine with `select { case <-ctx.Done(): return }` and ensure `defer cancel()`.",
-          },
-          { type: "set", target: "scenarioRunning", value: false },
-        ],
-      },
-    ],
-  },
-];
-
 const agentMemoryV2: ComponentDef = {
   name: "Agent Memory Demo",
   description: "Shows how an LLM context window grows with each conversation turn, including a tool-call turn.",
@@ -709,17 +614,20 @@ const agentMemoryV2: ComponentDef = {
     { id: "step", type: "number", initialValue: 0 },
     { id: "typing", type: "boolean", initialValue: false },
     { id: "toolPending", type: "boolean", initialValue: false },
+    { id: "scenarioStep", type: "number", initialValue: 0 },
+    { id: "scenarioChar", type: "number", initialValue: 0 },
+    { id: "autoPlay", type: "boolean", initialValue: false },
     { id: "scenarioRunning", type: "boolean", initialValue: false },
     { id: "scenarioStarted", type: "boolean", initialValue: false },
   ],
   actions: [
     {
       id: "send",
-      ops: agentMemoryV2ScenarioOps,
+      ops: [],
     },
     {
       id: "autoPlay",
-      ops: agentMemoryV2ScenarioOps,
+      ops: [],
     },
     {
       id: "reset",
@@ -729,11 +637,66 @@ const agentMemoryV2: ComponentDef = {
         { type: "set", target: "step", value: 0 },
         { type: "set", target: "typing", value: false },
         { type: "set", target: "toolPending", value: false },
+        { type: "set", target: "scenarioStep", value: 0 },
+        { type: "set", target: "scenarioChar", value: 0 },
+        { type: "set", target: "autoPlay", value: false },
         { type: "set", target: "scenarioRunning", value: false },
         { type: "set", target: "scenarioStarted", value: false },
       ],
     },
   ],
+  scenario: {
+    inputStateId: "input",
+    userTypingMs: 90,
+    autoPlayDelayMs: 850,
+    assistantTypingMs: 900,
+    assistantDelayMs: 350,
+    toolDelayMs: 500,
+    steps: [
+      {
+        type: "system",
+        text: "You are a senior Go engineer inside a large monorepo. Use terse, practical responses. Prefer concurrency-safe patterns.",
+      },
+      {
+        type: "user",
+        text: "We are leaking goroutines in the request pipeline of a Go API. Where should I look first?",
+      },
+      {
+        type: "assistant",
+        text: "Start with context cancellation and channel drains. I'll scan for goroutine spawns tied to request scope.",
+        delayMs: 220,
+      },
+      {
+        type: "tool",
+        text: "{\"mcp\":\"GitHub\",\"action\":\"search\",\"query\":\"go routine leak context.WithCancel\"}",
+        delayMs: 380,
+      },
+      {
+        type: "assistant",
+        text: "Safe cancellation pattern:\n\n```go\nctx, cancel := context.WithCancel(r.Context())\ndefer cancel()\n\ngo func() {\n    for {\n        select {\n        case <-ctx.Done():\n            return\n        case msg := <-ch:\n            handle(msg)\n        }\n    }\n}()\n```",
+        delayMs: 260,
+      },
+      {
+        type: "assistant",
+        text: "Also check buffered channels that never close; add counters for goroutines per request.",
+        delayMs: 220,
+      },
+      {
+        type: "user",
+        text: "Can you show a safe worker pool pattern for this?",
+      },
+      {
+        type: "assistant",
+        text: "Worker pool sketch:\n\n```go\ntype Job struct { ID string }\n\nfunc startPool(ctx context.Context, jobs <-chan Job, n int) *sync.WaitGroup {\n    var wg sync.WaitGroup\n    wg.Add(n)\n    for i := 0; i < n; i++ {\n        go func() {\n            defer wg.Done()\n            for {\n                select {\n                case <-ctx.Done():\n                    return\n                case job, ok := <-jobs:\n                    if !ok {\n                        return\n                    }\n                    process(job)\n                }\n            }\n        }()\n    }\n    return &wg\n}\n```",
+        delayMs: 240,
+      },
+      {
+        type: "assistant",
+        text: "Confirm with pprof: capture before and after a load test and watch goroutine count return to baseline.",
+        delayMs: 200,
+      },
+    ],
+  },
   blocks: [
     {
       id: "main-split",
@@ -872,245 +835,6 @@ const tokenGrowthV2: ComponentDef = {
 
 const tokenGrowthV3: ComponentDef = tokenGrowthV2;
 
-const contextDemoV1ScenarioOps: Op[] = [
-  {
-    type: "conditional",
-    condition: { left: "scenarioStarted", op: "eq", right: 0 },
-    then: [
-      { type: "set", target: "scenarioStarted", value: true },
-      { type: "set", target: "scenarioRunning", value: true },
-      { type: "clear-string", target: "input" },
-      {
-        type: "append-log",
-        target: "messages",
-        kind: "system",
-        template: "You are a staff Go engineer working in a real codebase. Be precise. Prefer incremental changes and cite tools when used.",
-      },
-      { type: "increment", target: "tokenCount", delta: 240 },
-      { type: "push-state", target: "callHistory", source: "tokenCount" },
-      {
-        type: "append-log",
-        target: "messages",
-        kind: "user",
-        template: "Add a new Go endpoint that exposes build stats and cache hits. Assume this codebase has MCPs.",
-      },
-      { type: "increment", target: "tokenCount", delta: 160 },
-      { type: "push-state", target: "callHistory", source: "tokenCount" },
-      { type: "set", target: "typing", value: true },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 700,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          { type: "set", target: "typing", value: false },
-          {
-            type: "append-log",
-            target: "messages",
-            kind: "assistant",
-            template: "I'll inspect the service layout, schema, and existing build metrics. Running MCPs.",
-          },
-          { type: "increment", target: "tokenCount", delta: 280 },
-          { type: "push-state", target: "callHistory", source: "tokenCount" },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 1100,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          {
-            type: "append-log",
-            target: "messages",
-            kind: "tool",
-            template: "{\"mcp\":\"Outcoms OS\",\"action\":\"describe_runtime\",\"scope\":\"observability\"}",
-          },
-          { type: "increment", target: "tokenCount", delta: 220 },
-          { type: "push-state", target: "callHistory", source: "tokenCount" },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 1400,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          {
-            type: "append-log",
-            target: "messages",
-            kind: "tool",
-            template: "{\"mcp\":\"GitHub\",\"action\":\"search\",\"query\":\"build stats handler go http\"}",
-          },
-          { type: "increment", target: "tokenCount", delta: 220 },
-          { type: "push-state", target: "callHistory", source: "tokenCount" },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 1700,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          {
-            type: "append-log",
-            target: "messages",
-            kind: "tool",
-            template: "{\"mcp\":\"Postgres\",\"action\":\"describe\",\"table\":\"build_metrics\"}",
-          },
-          { type: "increment", target: "tokenCount", delta: 220 },
-          { type: "push-state", target: "callHistory", source: "tokenCount" },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 2000,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          {
-            type: "append-log",
-            target: "messages",
-            kind: "tool",
-            template: "{\"mcp\":\"Linear\",\"action\":\"search\",\"query\":\"build stats endpoint\"}",
-          },
-          { type: "increment", target: "tokenCount", delta: 210 },
-          { type: "push-state", target: "callHistory", source: "tokenCount" },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 2300,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          {
-            type: "append-log",
-            target: "messages",
-            kind: "tool",
-            template: "{\"mcp\":\"Slack\",\"action\":\"channel_lookup\",\"channel\":\"#platform-build\"}",
-          },
-          { type: "increment", target: "tokenCount", delta: 200 },
-          { type: "push-state", target: "callHistory", source: "tokenCount" },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 2600,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          {
-            type: "append-log",
-            target: "messages",
-            kind: "tool",
-            template: "{\"mcp\":\"WebSearch\",\"action\":\"query\",\"query\":\"go http handler metrics endpoint patterns\"}",
-          },
-          { type: "increment", target: "tokenCount", delta: 230 },
-          { type: "push-state", target: "callHistory", source: "tokenCount" },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 3000,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          { type: "set", target: "typing", value: true },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 3300,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          { type: "set", target: "typing", value: false },
-          {
-            type: "append-log",
-            target: "messages",
-            kind: "assistant",
-            template: "We'll add /v1/build-stats. Use BuildMetricsRepo and return cache hits from build_metrics. I'll sketch the handler and route.",
-          },
-          { type: "increment", target: "tokenCount", delta: 320 },
-          { type: "push-state", target: "callHistory", source: "tokenCount" },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 3600,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          { type: "set", target: "typing", value: true },
-        ],
-      },
-    ],
-  },
-  {
-    type: "delay-then",
-    delayMs: 3900,
-    ops: [
-      {
-        type: "conditional",
-        condition: { left: "scenarioRunning", op: "eq", right: 1 },
-        then: [
-          { type: "set", target: "typing", value: false },
-          {
-            type: "append-log",
-            target: "messages",
-            kind: "assistant",
-            template: "Sketch:\\n\\nfunc (h *Handler) buildStats(w http.ResponseWriter, r *http.Request) {\\n    stats, err := h.BuildMetricsRepo.Latest(r.Context())\\n    if err != nil {\\n        http.Error(w, err.Error(), 500)\\n        return\\n    }\\n    render.JSON(w, map[string]any{\\n        \\\"cache_hits\\\": stats.CacheHits,\\n        \\\"builds\\\": stats.Builds,\\n    })\\n}\\n\\nWire it as GET /v1/build-stats.",
-          },
-          { type: "increment", target: "tokenCount", delta: 380 },
-          { type: "push-state", target: "callHistory", source: "tokenCount" },
-          { type: "set", target: "scenarioRunning", value: false },
-        ],
-      },
-    ],
-  },
-];
-
 const contextDemoV1: ComponentDef = {
   name: "Context Demo",
   description: "Chat interface merged with token tracking: type a message to see the context window JSON and token cost chart update in real time.",
@@ -1122,17 +846,20 @@ const contextDemoV1: ComponentDef = {
     { id: "toolPending", type: "boolean", initialValue: false },
     { id: "tokenCount", type: "number", initialValue: 400 },
     { id: "callHistory", type: "array", initialValue: [] },
+    { id: "scenarioStep", type: "number", initialValue: 0 },
+    { id: "scenarioChar", type: "number", initialValue: 0 },
+    { id: "autoPlay", type: "boolean", initialValue: false },
     { id: "scenarioRunning", type: "boolean", initialValue: false },
     { id: "scenarioStarted", type: "boolean", initialValue: false },
   ],
   actions: [
     {
       id: "send",
-      ops: contextDemoV1ScenarioOps,
+      ops: [],
     },
     {
       id: "autoPlay",
-      ops: contextDemoV1ScenarioOps,
+      ops: [],
     },
     {
       id: "reset",
@@ -1144,11 +871,107 @@ const contextDemoV1: ComponentDef = {
         { type: "set", target: "toolPending", value: false },
         { type: "set", target: "tokenCount", value: 400 },
         { type: "set", target: "callHistory", value: [] },
+        { type: "set", target: "scenarioStep", value: 0 },
+        { type: "set", target: "scenarioChar", value: 0 },
+        { type: "set", target: "autoPlay", value: false },
         { type: "set", target: "scenarioRunning", value: false },
         { type: "set", target: "scenarioStarted", value: false },
       ],
     },
   ],
+  scenario: {
+    inputStateId: "input",
+    userTypingMs: 100,
+    autoPlayDelayMs: 900,
+    assistantTypingMs: 950,
+    assistantDelayMs: 450,
+    toolDelayMs: 520,
+    tokenStateId: "tokenCount",
+    tokenHistoryId: "callHistory",
+    steps: [
+      {
+        type: "system",
+        text: "You are a staff Go engineer working in a real codebase. Be precise. Prefer incremental changes and cite tools when used.",
+        tokenDelta: 260,
+      },
+      {
+        type: "user",
+        text: "Add a new Go endpoint that exposes build stats and cache hits. Assume this codebase has MCPs.",
+        tokenDelta: 170,
+      },
+      {
+        type: "assistant",
+        text: "I'll inspect the service layout, schema, and existing build metrics. Running MCPs.",
+        delayMs: 220,
+        tokenDelta: 280,
+      },
+      {
+        type: "tool",
+        text: "{\"mcp\":\"Outcoms OS\",\"action\":\"describe_runtime\",\"scope\":\"observability\"}",
+        delayMs: 420,
+        tokenDelta: 220,
+      },
+      {
+        type: "tool",
+        text: "{\"mcp\":\"GitHub\",\"action\":\"search\",\"query\":\"build stats handler go http\"}",
+        delayMs: 420,
+        tokenDelta: 220,
+      },
+      {
+        type: "tool",
+        text: "{\"mcp\":\"Postgres\",\"action\":\"describe\",\"table\":\"build_metrics\"}",
+        delayMs: 420,
+        tokenDelta: 220,
+      },
+      {
+        type: "tool",
+        text: "{\"mcp\":\"Linear\",\"action\":\"search\",\"query\":\"build stats endpoint\"}",
+        delayMs: 420,
+        tokenDelta: 210,
+      },
+      {
+        type: "tool",
+        text: "{\"mcp\":\"Slack\",\"action\":\"channel_lookup\",\"channel\":\"#platform-build\"}",
+        delayMs: 420,
+        tokenDelta: 200,
+      },
+      {
+        type: "tool",
+        text: "{\"mcp\":\"WebSearch\",\"action\":\"query\",\"query\":\"go http handler metrics endpoint patterns\"}",
+        delayMs: 420,
+        tokenDelta: 230,
+      },
+      {
+        type: "assistant",
+        text: "We'll add /v1/build-stats. Use BuildMetricsRepo and return cache hits from build_metrics. I'll sketch the handler and route.",
+        delayMs: 260,
+        tokenDelta: 320,
+      },
+      {
+        type: "assistant",
+        text: "Handler sketch:\n\n```go\nfunc (h *Handler) buildStats(w http.ResponseWriter, r *http.Request) {\n    stats, err := h.BuildMetricsRepo.Latest(r.Context())\n    if err != nil {\n        http.Error(w, err.Error(), 500)\n        return\n    }\n    render.JSON(w, map[string]any{\n        \"cache_hits\": stats.CacheHits,\n        \"builds\": stats.Builds,\n    })\n}\n```",
+        delayMs: 300,
+        tokenDelta: 420,
+      },
+      {
+        type: "user",
+        text: "How should we test this and expose metrics?",
+        tokenDelta: 140,
+      },
+      {
+        type: "assistant",
+        text: "Testing + metrics:\n\n```go\nfunc TestBuildStats(t *testing.T) {\n    rr := httptest.NewRecorder()\n    req := httptest.NewRequest(http.MethodGet, \"/v1/build-stats\", nil)\n    h.buildStats(rr, req)\n    require.Equal(t, http.StatusOK, rr.Code)\n}\n\nvar buildStatsHits = promauto.NewCounter(prometheus.CounterOpts{Name: \"build_stats_hits_total\"})\n```",
+        delayMs: 260,
+        tokenDelta: 360,
+      },
+      {
+        type: "assistant",
+        text: "Finally, wire GET /v1/build-stats in the router and add the response shape to the API docs.",
+        delayMs: 220,
+        tokenDelta: 180,
+      },
+    ],
+  },
   blocks: [
     {
       id: "main-split",

@@ -5,6 +5,7 @@ export type ComponentDef = {
   timers?: Timer[];
   actions: ActionDef[];
   blocks: BlockDef[];
+  scenario?: ScenarioDef;
 };
 
 export type MessageItem = {
@@ -26,6 +27,26 @@ export type StateVar = {
     | MessageItem[];
   min?: number;
   max?: number;
+};
+
+export type ScenarioStep =
+  | { type: "system"; text: string; delayMs?: number; tokenDelta?: number }
+  | { type: "user"; text: string; tokenDelta?: number }
+  | { type: "assistant"; text: string; delayMs?: number; typingMs?: number; tokenDelta?: number }
+  | { type: "tool"; text: string; delayMs?: number; tokenDelta?: number }
+  | { type: "pause"; ms: number };
+
+export type ScenarioDef = {
+  steps: ScenarioStep[];
+  inputStateId?: string;
+  userTypingMs?: number;
+  autoPlayDelayMs?: number;
+  assistantTypingMs?: number;
+  assistantDelayMs?: number;
+  toolDelayMs?: number;
+  systemDelayMs?: number;
+  tokenStateId?: string;
+  tokenHistoryId?: string;
 };
 
 export type LogEntry = {

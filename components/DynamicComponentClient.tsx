@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, useEffect, useCallback, useState } from "react";
+import { useReducer, useEffect, useCallback, useState, useRef } from "react";
 import type { ReactNode } from "react";
 import type {
   ComponentDef,
@@ -9,6 +9,8 @@ import type {
   Condition,
   LogEntry,
   MessageItem,
+  ScenarioDef,
+  ScenarioStep,
 } from "@/types/component";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
 
@@ -202,6 +204,12 @@ function formatTime(ts: number): string {
   );
 }
 
+function getFirstNonSystemIndex(steps: ScenarioStep[]): number {
+  let idx = 0;
+  while (steps[idx] && steps[idx].type === "system") idx += 1;
+  return idx;
+}
+
 // Sub-components that need local state
 
 type SubProps = {
@@ -210,9 +218,16 @@ type SubProps = {
   runAction: (id: string) => void;
   dispatchOps: (ops: Op[]) => void;
   def: ComponentDef;
+  scenarioHandlers: ScenarioHandlers;
 };
 
-function TabsBlock({ block, state, runAction, dispatchOps, def }: SubProps) {
+type ScenarioHandlers = {
+  scenario?: ScenarioDef;
+  startScenario: (autoPlay: boolean) => void;
+  advanceUserChar: (stateId: string, manual: boolean) => void;
+};
+
+function TabsBlock({ block, state, runAction, dispatchOps, def, scenarioHandlers }: SubProps) {
   const [activeTab, setActiveTab] = useState(0);
   return (
     <div className="demo-tabs">
@@ -229,14 +244,14 @@ function TabsBlock({ block, state, runAction, dispatchOps, def }: SubProps) {
       </div>
       <div className="demo-tab-content">
         {(block.props.tabContents?.[activeTab] ?? []).map((c) =>
-          renderBlock(c, state, runAction, dispatchOps, def)
+          renderBlock(c, state, runAction, dispatchOps, def, scenarioHandlers)
         )}
       </div>
     </div>
   );
 }
 
-function PanelBlock({ block, state, runAction, dispatchOps, def }: SubProps) {
+function PanelBlock({ block, state, runAction, dispatchOps, def, scenarioHandlers }: SubProps) {
   const [open, setOpen] = useState(true);
   return (
     <div className="demo-panel">
@@ -260,7 +275,7 @@ function PanelBlock({ block, state, runAction, dispatchOps, def }: SubProps) {
             minWidth: 0,
           }}
         >
-          {block.children?.map((c) => renderBlock(c, state, runAction, dispatchOps, def))}
+          {block.children?.map((c) => renderBlock(c, state, runAction, dispatchOps, def, scenarioHandlers))}
         </div>
       )}
     </div>
@@ -272,13 +287,14 @@ function renderBlock(
   state: State,
   runAction: (id: string) => void,
   dispatchOps: (ops: Op[]) => void,
-  def: ComponentDef
+  def: ComponentDef,
+  scenarioHandlers: ScenarioHandlers
 ): ReactNode {
   // Universal visibleWhen guard
   if (block.props.visibleWhen !== undefined && !state[block.props.visibleWhen]) return null;
 
   const children = block.children?.map((c) =>
-    renderBlock(c, state, runAction, dispatchOps, def)
+    renderBlock(c, state, runAction, dispatchOps, def, scenarioHandlers)
   );
 
   switch (block.type) {
@@ -449,7 +465,7 @@ function renderBlock(
     case "chat-input": {
       const stateId = block.props.inputState ?? "input";
       const value = String(state[stateId] ?? "");
-      const isDisabled = block.props.disabledWhen
+      const isSendDisabled = block.props.disabledWhen
         ? Boolean(state[block.props.disabledWhen])
         : false;
       const autoSendOnInput = Boolean(block.props.autoSendOnInput);
@@ -461,20 +477,20 @@ function renderBlock(
             className="demo-chat-input"
             value={value}
             placeholder={block.props.placeholder ?? "Type a message…"}
-            disabled={isDisabled}
             onChange={(e) => {
               const nextValue = e.target.value;
-              if (autoSendOnInput) {
-                if (!isDisabled && nextValue.trim()) {
-                  runAction(sendAction);
-                }
-                dispatchOps([{ type: "set-string", target: stateId, value: "" }]);
-                return;
-              }
+              if (autoSendOnInput && scenarioHandlers.scenario) return;
               dispatchOps([{ type: "set-string", target: stateId, value: nextValue }]);
             }}
             onKeyDown={(e) => {
-              if (isDisabled || autoSendOnInput) return;
+              if (autoSendOnInput && scenarioHandlers.scenario) {
+                if (e.key.length === 1 || e.key === "Enter" || e.key === "Backspace") {
+                  e.preventDefault();
+                  scenarioHandlers.advanceUserChar(stateId, true);
+                }
+                return;
+              }
+              if (isSendDisabled) return;
               if (e.key === "Enter" && !e.shiftKey && value.trim()) {
                 e.preventDefault();
                 runAction(sendAction);
@@ -483,8 +499,14 @@ function renderBlock(
           />
           <button
             className="demo-btn"
-            disabled={isDisabled}
-            onClick={() => value.trim() && runAction(sendAction)}
+            disabled={isSendDisabled}
+            onClick={() => {
+              if (autoSendOnInput && scenarioHandlers.scenario) {
+                scenarioHandlers.startScenario(false);
+                return;
+              }
+              value.trim() && runAction(sendAction);
+            }}
           >
             {block.props.label ?? "Send"}
           </button>
@@ -578,6 +600,7 @@ function renderBlock(
           runAction={runAction}
           dispatchOps={dispatchOps}
           def={def}
+          scenarioHandlers={scenarioHandlers}
         />
       );
 
@@ -590,6 +613,7 @@ function renderBlock(
           runAction={runAction}
           dispatchOps={dispatchOps}
           def={def}
+          scenarioHandlers={scenarioHandlers}
         />
       );
 
@@ -730,9 +754,97 @@ function renderBlock(
 
 export function DynamicComponentClient({ definition }: { definition: ComponentDef }) {
   const [state, dispatch] = useReducer(reducer, definition, buildInitialState);
+  const scenario = definition.scenario;
+  const scenarioTimersRef = useRef<number[]>([]);
+  const scheduledStepRef = useRef<number | null>(null);
+
+  const clearScenarioTimers = useCallback(() => {
+    scenarioTimersRef.current.forEach((t) => clearTimeout(t));
+    scenarioTimersRef.current = [];
+  }, []);
+
+  const dispatchOps = useCallback(
+    (ops: Op[]) => dispatch({ ops }),
+    []
+  );
+
+  const appendTokenOps = useCallback(
+    (ops: Op[], delta?: number) => {
+      if (!scenario?.tokenStateId || delta === undefined) return;
+      ops.push({ type: "increment", target: scenario.tokenStateId, delta });
+      if (scenario.tokenHistoryId) {
+        ops.push({ type: "push-state", target: scenario.tokenHistoryId, source: scenario.tokenStateId });
+      }
+    },
+    [scenario]
+  );
+
+  const startScenario = useCallback(
+    (autoPlay: boolean) => {
+      if (!scenario) return;
+      if (state.scenarioStarted) return;
+      const ops: Op[] = [
+        { type: "set", target: "scenarioStarted", value: true },
+        { type: "set", target: "scenarioRunning", value: true },
+        { type: "set", target: "autoPlay", value: autoPlay },
+        { type: "set", target: "scenarioChar", value: 0 },
+      ];
+      const inputStateId = scenario.inputStateId ?? "input";
+      ops.push({ type: "clear-string", target: inputStateId });
+
+      const steps = scenario.steps ?? [];
+      let idx = 0;
+      while (steps[idx] && steps[idx].type === "system") {
+        const step = steps[idx];
+        ops.push({ type: "append-log", target: "messages", kind: "system", template: step.text });
+        appendTokenOps(ops, step.tokenDelta);
+        idx += 1;
+      }
+      ops.push({ type: "set", target: "scenarioStep", value: idx });
+      dispatchOps(ops);
+    },
+    [scenario, state.scenarioStarted, dispatchOps, appendTokenOps]
+  );
+
+  const advanceUserChar = useCallback(
+    (stateId: string, manual: boolean) => {
+      if (!scenario) return;
+      const steps = scenario.steps ?? [];
+      const started = Boolean(state.scenarioStarted);
+      const stepIndex = started ? Number(state.scenarioStep ?? 0) : getFirstNonSystemIndex(steps);
+      const step = steps[stepIndex];
+      if (!started) {
+        startScenario(false);
+      }
+      if (!step || step.type !== "user") return;
+      const currentIndex = started ? Number(state.scenarioChar ?? 0) : 0;
+      const nextIndex = Math.min(step.text.length, currentIndex + 1);
+      const nextValue = step.text.slice(0, nextIndex);
+      const ops: Op[] = [
+        { type: "set-string", target: stateId, value: nextValue },
+        { type: "set", target: "scenarioChar", value: nextIndex },
+      ];
+      if (manual && state.autoPlay) {
+        ops.unshift({ type: "set", target: "autoPlay", value: false });
+      }
+      if (nextIndex >= step.text.length) {
+        ops.push({ type: "append-log", target: "messages", kind: "user", template: step.text });
+        ops.push({ type: "clear-string", target: stateId });
+        ops.push({ type: "set", target: "scenarioChar", value: 0 });
+        ops.push({ type: "increment", target: "scenarioStep", delta: 1 });
+        appendTokenOps(ops, step.tokenDelta);
+      }
+      dispatchOps(ops);
+    },
+    [scenario, state, dispatchOps, appendTokenOps, startScenario]
+  );
 
   const runAction = useCallback(
     (id: string) => {
+      if (scenario && (id === "send" || id === "autoPlay")) {
+        startScenario(id === "autoPlay");
+        return;
+      }
       const ops = definition.actions.find((a) => a.id === id)?.ops ?? [];
       const syncBatch: Op[] = [];
       for (const op of ops) {
@@ -749,13 +861,102 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
       }
       if (syncBatch.length) dispatch({ ops: syncBatch });
     },
-    [definition]
+    [definition, scenario, startScenario]
   );
 
-  const dispatchOps = useCallback(
-    (ops: Op[]) => dispatch({ ops }),
-    []
-  );
+  useEffect(() => {
+    if (!scenario || !state.scenarioRunning) {
+      clearScenarioTimers();
+      scheduledStepRef.current = null;
+      return;
+    }
+    const steps = scenario.steps ?? [];
+    const stepIndex = Number(state.scenarioStep ?? 0);
+    const step = steps[stepIndex];
+    if (!step) {
+      dispatchOps([
+        { type: "set", target: "scenarioRunning", value: false },
+        { type: "set", target: "autoPlay", value: false },
+      ]);
+      scheduledStepRef.current = null;
+      return;
+    }
+    if (step.type === "user") {
+      scheduledStepRef.current = null;
+      return;
+    }
+    if (scheduledStepRef.current === stepIndex) return;
+    scheduledStepRef.current = stepIndex;
+
+    if (step.type === "pause") {
+      const timeoutId = window.setTimeout(() => {
+        dispatchOps([{ type: "increment", target: "scenarioStep", delta: 1 }]);
+      }, step.ms);
+      scenarioTimersRef.current.push(timeoutId);
+      return;
+    }
+
+    const delayMs =
+      step.delayMs ??
+      (step.type === "assistant"
+        ? scenario.assistantDelayMs ?? 400
+        : step.type === "tool"
+        ? scenario.toolDelayMs ?? 450
+        : scenario.systemDelayMs ?? 0);
+
+    if (step.type === "assistant") {
+      const typingMs = step.typingMs ?? scenario.assistantTypingMs ?? 900;
+      dispatchOps([{ type: "set", target: "typing", value: true }]);
+      const timeoutId = window.setTimeout(() => {
+        const ops: Op[] = [
+          { type: "set", target: "typing", value: false },
+          { type: "append-log", target: "messages", kind: "assistant", template: step.text },
+          { type: "increment", target: "scenarioStep", delta: 1 },
+        ];
+        appendTokenOps(ops, step.tokenDelta);
+        dispatchOps(ops);
+      }, delayMs + typingMs);
+      scenarioTimersRef.current.push(timeoutId);
+      return;
+    }
+
+    if (step.type === "tool" || step.type === "system") {
+      const timeoutId = window.setTimeout(() => {
+        const ops: Op[] = [
+          { type: "append-log", target: "messages", kind: step.type, template: step.text },
+          { type: "increment", target: "scenarioStep", delta: 1 },
+        ];
+        appendTokenOps(ops, step.tokenDelta);
+        dispatchOps(ops);
+      }, delayMs);
+      scenarioTimersRef.current.push(timeoutId);
+    }
+  }, [scenario, state.scenarioRunning, state.scenarioStep, dispatchOps, appendTokenOps, clearScenarioTimers]);
+
+  useEffect(() => {
+    if (!scenario || !state.autoPlay || !state.scenarioRunning) return;
+    const steps = scenario.steps ?? [];
+    const stepIndex = Number(state.scenarioStep ?? 0);
+    const step = steps[stepIndex];
+    if (!step || step.type !== "user") return;
+    if (Number(state.scenarioChar ?? 0) >= step.text.length) return;
+    const delayMs =
+      Number(state.scenarioChar ?? 0) === 0
+        ? scenario.autoPlayDelayMs ?? 600
+        : scenario.userTypingMs ?? 70;
+    const inputStateId = scenario.inputStateId ?? "input";
+    const timeoutId = window.setTimeout(() => {
+      advanceUserChar(inputStateId, false);
+    }, delayMs);
+    scenarioTimersRef.current.push(timeoutId);
+  }, [
+    scenario,
+    state.autoPlay,
+    state.scenarioRunning,
+    state.scenarioStep,
+    state.scenarioChar,
+    advanceUserChar,
+  ]);
 
   useEffect(() => {
     const timers = definition.timers?.map((t) =>
@@ -764,6 +965,12 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
     return () => timers?.forEach(clearInterval);
   }, [definition, runAction]);
 
+  const scenarioHandlers: ScenarioHandlers = {
+    scenario,
+    startScenario,
+    advanceUserChar,
+  };
+
   return (
     <div className="demo-shell">
       <div className="demo-shell-header">
@@ -771,7 +978,7 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
         <span className="demo-badge">Interactive</span>
       </div>
       <div className="demo-body">
-        {definition.blocks.map((b) => renderBlock(b, state, runAction, dispatchOps, definition))}
+        {definition.blocks.map((b) => renderBlock(b, state, runAction, dispatchOps, definition, scenarioHandlers))}
       </div>
     </div>
   );
