@@ -2,6 +2,7 @@ import type { ComponentPropsWithoutRef } from "react";
 import { CodeBlock } from "@/components/CodeBlock";
 import { Split } from "@/components/Split";
 import { CodeSnippet } from "@/components/CodeSnippet";
+import { DynamicComponent } from "@/components/DynamicComponent";
 import { RateLimitDemo } from "@/components/demos/RateLimitDemo";
 import { FixedWindowDemo } from "@/components/demos/FixedWindowDemo";
 import { SlidingWindowDemo } from "@/components/demos/SlidingWindowDemo";
@@ -19,8 +20,15 @@ export const mdxComponents = {
   code: (props: ComponentPropsWithoutRef<"code">) => <code className="mdx-code" {...props} />,
   pre: (props: ComponentPropsWithoutRef<"pre">) => <CodeBlock {...props} />,
   hr: (props: ComponentPropsWithoutRef<"hr">) => <hr className="mdx-hr" {...props} />,
+  table: (props: ComponentPropsWithoutRef<"table">) => (
+    <div className="mdx-table-wrap">
+      <table className="mdx-table" {...props} />
+    </div>
+  ),
   Split,
   CodeSnippet,
+  DynamicComponent,
+  // Legacy: keep these registered so existing post content still works
   RateLimitDemo,
   FixedWindowDemo,
   SlidingWindowDemo,

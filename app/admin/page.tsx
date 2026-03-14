@@ -20,6 +20,7 @@ export default async function AdminPage() {
           <h1 className="section-title">Posts</h1>
           <div style={{ display: "flex", gap: "8px" }}>
             <Link href="/admin/docs" className="btn ghost">Docs</Link>
+            <Link href="/admin/components" className="btn ghost">Components</Link>
             <Link href="/admin/new" className="btn primary">New Post</Link>
           </div>
         </div>

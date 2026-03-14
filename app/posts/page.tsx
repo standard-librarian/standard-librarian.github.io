@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getAllPosts } from "@/lib/posts";
+import { CollapsibleTopics } from "@/components/CollapsibleTopics";
 
 export const dynamic = "force-dynamic";
 
@@ -23,26 +24,7 @@ export default async function PostsPage({
         <div className="reveal">
           <h1 className="section-title">All posts</h1>
           <div className="posts-layout">
-            <aside className="posts-sidebar">
-              <p className="sidebar-heading">Topics</p>
-              <div className="sidebar-tags">
-                <Link
-                  href="/posts"
-                  className={`sidebar-tag${!activeTag ? " active" : ""}`}
-                >
-                  All
-                </Link>
-                {allTags.map((tag) => (
-                  <Link
-                    key={tag}
-                    href={`/posts?tag=${tag}`}
-                    className={`sidebar-tag${activeTag === tag ? " active" : ""}`}
-                  >
-                    #{tag}
-                  </Link>
-                ))}
-              </div>
-            </aside>
+            <CollapsibleTopics tags={allTags} activeTag={activeTag} />
             <div className="post-list">
               {posts.map((post) => (
                 <div key={post.slug} className="post-list-item">

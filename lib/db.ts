@@ -16,10 +16,11 @@ export function getDb(): Client {
   return _db;
 }
 
-// Creates the posts table if it doesn't exist. Called once per process.
+// Creates the posts and components tables if they don't exist. Called once per process.
 export async function ensureSchema(): Promise<void> {
   if (!_schemaReady) {
-    _schemaReady = getDb().execute(`
+    const db = getDb();
+    _schemaReady = db.execute(`
       CREATE TABLE IF NOT EXISTS posts (
         slug         TEXT PRIMARY KEY,
         title        TEXT NOT NULL,
@@ -31,7 +32,18 @@ export async function ensureSchema(): Promise<void> {
         created_at   TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
       )
-    `).then(() => undefined);
+    `).then(() => db.execute(`
+      CREATE TABLE IF NOT EXISTS components (
+        id          TEXT PRIMARY KEY,
+        name        TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        definition  TEXT NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'pending',
+        author      TEXT NOT NULL DEFAULT '',
+        created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `)).then(() => undefined);
   }
   return _schemaReady;
 }

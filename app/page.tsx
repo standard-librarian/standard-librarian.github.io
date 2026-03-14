@@ -1,5 +1,17 @@
 import Link from "next/link";
 import { getAllPosts } from "@/lib/posts";
+import { InteractiveTerminal } from "@/components/InteractiveTerminal";
+
+const terminalCommands: Record<string, string> = {
+  whoami:
+    "Mdht — backend engineer, occasional writer.",
+  "cat about.txt":
+    "I build software, think about math, read old books,\nand occasionally write things worth reading.",
+  "ls interests/":
+    "go   category-theory   islamic-scholarship\nai-agents   array-languages   books   poetry",
+  "echo $STACK":
+    "Go, TypeScript, Postgres, Redis",
+};
 
 export default async function HomePage() {
   const posts = (await getAllPosts()).slice(0, 3);
@@ -12,7 +24,7 @@ export default async function HomePage() {
             <div>
               <h1 className="hero-title">Mdht</h1>
               <p className="hero-lead">
-                Notes on systems design, context engineering, and real-world delivery.
+                Software engineer. I build systems and write about what I learn.
               </p>
               <div className="hero-cta">
                 <Link className="btn primary" href="/posts">
@@ -23,12 +35,8 @@ export default async function HomePage() {
                 </Link>
               </div>
             </div>
-            <div className="hero-code" aria-hidden="true">
-              <div>$ go run ./cmd/api</div>
-              <div>&gt; server started on :8080</div>
-              <div>$ curl /context</div>
-              <div>&gt; &#123;&quot;tokens&quot;:4096,&quot;used&quot;:1820&#125;</div>
-              <div>$ _</div>
+            <div className="hero-terminal-col">
+              <InteractiveTerminal commands={terminalCommands} autoplay />
             </div>
           </div>
         </div>
