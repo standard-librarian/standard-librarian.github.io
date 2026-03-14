@@ -1065,13 +1065,17 @@ main {
 @media (max-width: 720px) {
     .mdht-hero {
         grid-template-columns: 1fr;
-        gap: 16px;
+        gap: 12px;
     }
     .mdht-portrait-stack {
-        width: 240px;
+        width: 180px;
     }
     .mdht-hero > .mdht-portrait {
-        justify-self: center;
+        justify-self: start;
+        order: -1;
+    }
+    .mdht-hero-text {
+        order: 2;
     }
 }
 .mdht-portrait-stack {
