@@ -861,7 +861,7 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
       if (!scenario?.tokenStateId || delta === undefined) return;
       ops.push({ type: "increment", target: scenario.tokenStateId, delta });
       if (scenario.tokenHistoryId) {
-        ops.push({ type: "push", target: scenario.tokenHistoryId, value: delta });
+        ops.push({ type: "push-state", target: scenario.tokenHistoryId, source: scenario.tokenStateId });
       }
     },
     [scenario]

@@ -78,7 +78,7 @@ export function RateLimitDemo({ limit = 5, windowSecs = 10 }: RateLimitDemoProps
         <div className="demo-token-bar">
           <div
             className="demo-token-bar-fill"
-            style={{ width: `${tokenPct * 100}%` }}
+            style={{ transform: `scaleX(${tokenPct})` }}
           />
         </div>
         <span className="demo-token-label">
