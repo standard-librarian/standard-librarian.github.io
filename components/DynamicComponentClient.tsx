@@ -251,7 +251,15 @@ function PanelBlock({ block, state, runAction, dispatchOps, def }: SubProps) {
         </div>
       )}
       {open && (
-        <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div
+          style={{
+            padding: "12px 14px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+            minWidth: 0,
+          }}
+        >
           {block.children?.map((c) => renderBlock(c, state, runAction, dispatchOps, def))}
         </div>
       )}
@@ -396,7 +404,11 @@ function renderBlock(
 
     case "column":
       return (
-        <div key={block.id} className="demo-body">
+        <div
+          key={block.id}
+          className="demo-body"
+          style={{ minWidth: block.props.minWidth }}
+        >
           {children}
         </div>
       );
@@ -514,7 +526,15 @@ function renderBlock(
               <span className="code-lang">{block.props.language}</span>
             </div>
           )}
-          <pre style={{ overflowY: "auto", height: "240px", margin: 0 }}>
+          <pre
+            style={{
+              overflowY: "auto",
+              overflowX: "auto",
+              height: "240px",
+              margin: 0,
+              maxWidth: "100%",
+            }}
+          >
             <code>{text}</code>
           </pre>
         </div>

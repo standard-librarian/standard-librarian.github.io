@@ -12,6 +12,7 @@ import path from "path";
 import matter from "gray-matter";
 import readingTime from "reading-time";
 import { createClient } from "@libsql/client";
+import { seedComponents } from "../lib/component-seeds";
 
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL!,
@@ -86,6 +87,8 @@ async function main() {
 
     console.log(`Seeded: ${slug}`);
   }
+
+  await seedComponents({ force: true });
 
   console.log("Done!");
   process.exit(0);

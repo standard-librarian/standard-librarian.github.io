@@ -63,6 +63,36 @@ export async function createComponent(data: {
   });
 }
 
+export async function upsertComponent(data: {
+  id: string;
+  name: string;
+  description?: string;
+  definition: string;
+  author?: string;
+  status?: DBComponent["status"];
+}): Promise<void> {
+  await ensureSchema();
+  await getDb().execute({
+    sql: `INSERT INTO components (id, name, description, definition, author, status)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            description = excluded.description,
+            definition = excluded.definition,
+            author = excluded.author,
+            status = excluded.status,
+            updated_at = datetime('now')`,
+    args: [
+      data.id,
+      data.name,
+      data.description ?? "",
+      data.definition,
+      data.author ?? "",
+      data.status ?? "pending",
+    ],
+  });
+}
+
 export async function updateComponent(
   id: string,
   data: { name?: string; description?: string; definition?: string; author?: string }

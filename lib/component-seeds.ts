@@ -1,4 +1,4 @@
-import { createComponent } from "@/lib/components";
+import { createComponent, upsertComponent } from "@/lib/components";
 import type { ComponentDef } from "@/types/component";
 
 const tokenBucket: ComponentDef = {
@@ -577,7 +577,7 @@ const agentMemory: ComponentDef = {
         {
           id: "left-col",
           type: "column",
-          props: {},
+          props: { minWidth: 0 },
           children: [
             { id: "chat", type: "chat-feed", props: { source: "messages", showTimestamps: false } },
             { id: "typing-ind", type: "typing-indicator", props: { visibleWhen: "typing" } },
@@ -701,7 +701,7 @@ const agentMemoryV2: ComponentDef = {
         {
           id: "left-col",
           type: "column",
-          props: {},
+          props: { minWidth: 0 },
           children: [
             { id: "chat", type: "chat-feed", props: { source: "messages", showTimestamps: false } },
             { id: "typing-ind", type: "typing-indicator", props: { visibleWhen: "typing" } },
@@ -927,7 +927,7 @@ const contextDemoV1: ComponentDef = {
         {
           id: "left-col",
           type: "column",
-          props: {},
+          props: { minWidth: 0 },
           children: [
             { id: "chat", type: "chat-feed", props: { source: "messages", showTimestamps: false } },
             { id: "typing-ind", type: "typing-indicator", props: { visibleWhen: "typing" } },
@@ -937,7 +937,7 @@ const contextDemoV1: ComponentDef = {
         {
           id: "right-col",
           type: "column",
-          props: {},
+          props: { minWidth: 0 },
           children: [
             {
               id: "ctx-panel",
@@ -971,8 +971,9 @@ const contextDemoV1: ComponentDef = {
   ],
 };
 
-export async function seedComponents(): Promise<void> {
-  await createComponent({
+export async function seedComponents(options: { force?: boolean } = {}): Promise<void> {
+  const writeComponent = options.force ? upsertComponent : createComponent;
+  await writeComponent({
     id: "token-bucket",
     name: tokenBucket.name,
     description: tokenBucket.description ?? "",
@@ -980,7 +981,7 @@ export async function seedComponents(): Promise<void> {
     author: "system",
     status: "approved",
   });
-  await createComponent({
+  await writeComponent({
     id: "fixed-window",
     name: fixedWindow.name,
     description: fixedWindow.description ?? "",
@@ -988,7 +989,7 @@ export async function seedComponents(): Promise<void> {
     author: "system",
     status: "approved",
   });
-  await createComponent({
+  await writeComponent({
     id: "sliding-window",
     name: slidingWindow.name,
     description: slidingWindow.description ?? "",
@@ -996,7 +997,7 @@ export async function seedComponents(): Promise<void> {
     author: "system",
     status: "approved",
   });
-  await createComponent({
+  await writeComponent({
     id: "agent-memory",
     name: agentMemory.name,
     description: agentMemory.description ?? "",
@@ -1004,7 +1005,7 @@ export async function seedComponents(): Promise<void> {
     author: "system",
     status: "approved",
   });
-  await createComponent({
+  await writeComponent({
     id: "message-roles",
     name: messageRoles.name,
     description: messageRoles.description ?? "",
@@ -1012,7 +1013,7 @@ export async function seedComponents(): Promise<void> {
     author: "system",
     status: "approved",
   });
-  await createComponent({
+  await writeComponent({
     id: "token-growth",
     name: tokenGrowth.name,
     description: tokenGrowth.description ?? "",
@@ -1020,7 +1021,7 @@ export async function seedComponents(): Promise<void> {
     author: "system",
     status: "approved",
   });
-  await createComponent({
+  await writeComponent({
     id: "token-growth-v2",
     name: tokenGrowthV2.name,
     description: tokenGrowthV2.description ?? "",
@@ -1028,7 +1029,7 @@ export async function seedComponents(): Promise<void> {
     author: "system",
     status: "approved",
   });
-  await createComponent({
+  await writeComponent({
     id: "token-growth-v3",
     name: tokenGrowthV3.name,
     description: tokenGrowthV3.description ?? "",
@@ -1036,7 +1037,7 @@ export async function seedComponents(): Promise<void> {
     author: "system",
     status: "approved",
   });
-  await createComponent({
+  await writeComponent({
     id: "agent-memory-v2",
     name: agentMemoryV2.name,
     description: agentMemoryV2.description ?? "",
@@ -1044,7 +1045,7 @@ export async function seedComponents(): Promise<void> {
     author: "system",
     status: "approved",
   });
-  await createComponent({
+  await writeComponent({
     id: "context-demo-v1",
     name: contextDemoV1.name,
     description: contextDemoV1.description ?? "",
