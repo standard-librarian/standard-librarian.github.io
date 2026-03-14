@@ -510,7 +510,7 @@ function renderBlock(
 
     case "text":
       return (
-        <p key={block.id} className="mdx-p">
+        <p key={block.id} className="mdx-p" style={{ whiteSpace: "pre-wrap" }}>
           {block.props.content}
         </p>
       );

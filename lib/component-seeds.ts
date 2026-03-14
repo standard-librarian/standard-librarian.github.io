@@ -378,14 +378,14 @@ const messageRoles: ComponentDef = {
             {
               id: "sys-desc",
               type: "text",
-              props: { content: "Sets the model's persona, constraints, and task context. Sent at position 0 on every request — it costs tokens on every single call." },
+              props: { content: "Sets the model's persona, constraints, and task context.\nSent at position 0 on every request —\nit costs tokens on every single call." },
             },
             {
               id: "sys-code",
               type: "code-display",
               props: {
                 language: "json",
-                content: '{\n  "role": "system",\n  "content": "You are a code review assistant.\\nFocus on correctness, security, and performance.\\nBe concise. Use markdown."\n}',
+                content: '{\n  "role": "system",\n  "content": "You are a code review assistant.\n    Focus on correctness, security, and performance."\n}',
               },
             },
           ],
@@ -393,14 +393,14 @@ const messageRoles: ComponentDef = {
             {
               id: "usr-desc",
               type: "text",
-              props: { content: "The human's input. Each turn appends a new user object. The model sees every prior user message, not just the latest one." },
+              props: { content: "The human's input. Each turn appends a new user object.\nThe model sees every prior user message,\nnot just the latest one." },
             },
             {
               id: "usr-code",
               type: "code-display",
               props: {
                 language: "json",
-                content: '{\n  "role": "user",\n  "content": "Can you review this function for me?"\n}',
+                content: '{\n  "role": "user",\n  "content": "Can you review this function for me?\n    Focus especially on the auth logic."\n}',
               },
             },
           ],
@@ -408,14 +408,14 @@ const messageRoles: ComponentDef = {
             {
               id: "ast-desc",
               type: "text",
-              props: { content: "The model's previous replies. After each call, your app appends the response as an assistant message so the model has continuity on the next turn." },
+              props: { content: "The model's previous replies. After each call,\nyour app appends it as an assistant message\nso the model has continuity on the next turn." },
             },
             {
               id: "ast-code",
               type: "code-display",
               props: {
                 language: "json",
-                content: '{\n  "role": "assistant",\n  "content": "The function looks correct but has a subtle race condition on line 14. Here\'s why..."\n}',
+                content: '{\n  "role": "assistant",\n  "content": "The function looks correct but has\n    a subtle race condition on line 14."\n}',
               },
             },
           ],
@@ -423,7 +423,7 @@ const messageRoles: ComponentDef = {
             {
               id: "tool-desc",
               type: "text",
-              props: { content: "Results from tool/function calls. When the model invokes a tool, your app runs it and appends the result. The model sees this as a fact it retrieved, not a conversational turn." },
+              props: { content: "Results from tool/function calls. When the model invokes\na tool, your app runs it and appends the result.\nThe model sees it as a fact it retrieved." },
             },
             {
               id: "tool-code",
