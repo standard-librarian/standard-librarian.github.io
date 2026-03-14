@@ -997,6 +997,185 @@ main {
   }
 }
 
+/* ─── Demo system ───────────────────────────────────────────────────────── */
+
+.demo-shell {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  margin: 32px 0;
+  overflow: hidden;
+}
+
+.demo-shell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.demo-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.demo-badge {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.demo-body {
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.demo-token-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.demo-token-bar {
+  flex: 1;
+  height: 10px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.demo-token-bar-fill {
+  height: 100%;
+  background: #a6e3a1;
+  border-radius: 999px;
+  transition: width 0.1s linear;
+}
+
+/* Variant: fills as requests are consumed (fixed/sliding window) */
+.demo-token-bar-fill-used {
+  background: #fab387;
+}
+
+.demo-window-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.82rem;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.demo-window-count {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.demo-window-reset {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.demo-window-no-window {
+  font-style: italic;
+}
+
+.demo-token-label {
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.demo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.demo-btn {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.demo-btn:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--ink);
+}
+
+.demo-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.demo-event {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.demo-event-time {
+  color: var(--muted);
+}
+
+.demo-event-icon {
+  font-size: 0.9rem;
+  width: 1em;
+  text-align: center;
+}
+
+.demo-event-allowed .demo-event-icon {
+  color: #a6e3a1;
+}
+
+.demo-event-blocked .demo-event-icon {
+  color: #f38ba8;
+}
+
+.demo-event-label {
+  color: var(--ink);
+}
+
+.demo-event-blocked .demo-event-label {
+  color: var(--muted);
+}
+
+.demo-stats {
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
 /* ─── Admin ─────────────────────────────────────────────────────────────── */
 
 .admin-login-wrap {

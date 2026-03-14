@@ -2,6 +2,9 @@ import type { ComponentPropsWithoutRef } from "react";
 import { CodeBlock } from "@/components/CodeBlock";
 import { Split } from "@/components/Split";
 import { CodeSnippet } from "@/components/CodeSnippet";
+import { RateLimitDemo } from "@/components/demos/RateLimitDemo";
+import { FixedWindowDemo } from "@/components/demos/FixedWindowDemo";
+import { SlidingWindowDemo } from "@/components/demos/SlidingWindowDemo";
 
 export const mdxComponents = {
   h1: (props: ComponentPropsWithoutRef<"h1">) => <h1 className="mdx-h1" {...props} />,
@@ -18,4 +21,7 @@ export const mdxComponents = {
   hr: (props: ComponentPropsWithoutRef<"hr">) => <hr className="mdx-hr" {...props} />,
   Split,
   CodeSnippet,
+  RateLimitDemo,
+  FixedWindowDemo,
+  SlidingWindowDemo,
 };
