@@ -794,8 +794,9 @@ export function DynamicComponentClient({ definition }: { definition: ComponentDe
 
       const steps = scenario.steps ?? [];
       let idx = 0;
-      while (steps[idx] && steps[idx].type === "system") {
+      while (steps[idx]) {
         const step = steps[idx];
+        if (step.type !== "system") break;
         ops.push({ type: "append-log", target: "messages", kind: "system", template: step.text });
         appendTokenOps(ops, step.tokenDelta);
         idx += 1;
