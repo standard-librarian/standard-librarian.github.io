@@ -1731,6 +1731,7 @@ main {
     border-radius: 8px;
     overflow: hidden;
     min-width: 0;
+    flex-shrink: 0;
 }
 .demo-panel-fill {
     display: flex;
