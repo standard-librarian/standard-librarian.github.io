@@ -1,15 +1,11 @@
-import { getComponentById } from "@/lib/components";
-import { seedComponents } from "@/lib/component-seeds";
+import { getWidgetById } from "@/lib/widget-queries";
 import { DynamicComponentClient } from "@/components/DynamicComponentClient";
-import type { ComponentDef } from "@/types/component";
+import type { WidgetDef } from "@/types/widget";
 
 export async function DynamicComponent({ id }: { id: string }) {
-  // Seed on first use (INSERT OR IGNORE is idempotent)
-  await seedComponents();
-
-  const comp = await getComponentById(id);
+  const comp = await getWidgetById(id);
   if (!comp || comp.status !== "approved") return null;
 
-  const definition = JSON.parse(comp.definition) as ComponentDef;
+  const definition = JSON.parse(comp.definition) as WidgetDef;
   return <DynamicComponentClient definition={definition} />;
 }

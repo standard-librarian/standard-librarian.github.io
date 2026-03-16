@@ -1,4 +1,4 @@
-export type ComponentDef = {
+export type WidgetDef = {
   name: string;
   description?: string;
   state: StateVar[];
@@ -217,7 +217,7 @@ export type BlockProps = {
   visibleWhen?: string;
 };
 
-export type DBComponent = {
+export type DBWidget = {
   id: string;
   name: string;
   description: string;

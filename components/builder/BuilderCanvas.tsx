@@ -1,10 +1,10 @@
 "use client";
 
-import type { BlockDef, BlockType, ComponentDef } from "@/types/component";
+import type { BlockDef, BlockType, WidgetDef } from "@/types/widget";
 import { DynamicComponentClient } from "@/components/DynamicComponentClient";
 
 type Props = {
-  definition: ComponentDef;
+  definition: WidgetDef;
   selectedId: string | null;
   onSelectBlock: (id: string) => void;
   onDropBlock: (type: BlockType) => void;

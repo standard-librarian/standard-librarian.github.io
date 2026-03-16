@@ -1,56 +1,56 @@
 import { getDb, ensureSchema } from "@/lib/db";
-import type { DBComponent } from "@/types/component";
+import type { DBWidget } from "@/types/widget";
 
-function rowToComponent(row: Record<string, unknown>): DBComponent {
+function rowToWidget(row: Record<string, unknown>): DBWidget {
   return {
     id: String(row.id),
     name: String(row.name),
     description: String(row.description ?? ""),
     definition: String(row.definition),
-    status: String(row.status) as DBComponent["status"],
+    status: String(row.status) as DBWidget["status"],
     author: String(row.author ?? ""),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };
 }
 
-export async function getComponentById(id: string): Promise<DBComponent | null> {
+export async function getWidgetById(id: string): Promise<DBWidget | null> {
   await ensureSchema();
   const result = await getDb().execute({
-    sql: "SELECT * FROM components WHERE id = ?",
+    sql: "SELECT * FROM widgets WHERE id = ?",
     args: [id],
   });
   if (result.rows.length === 0) return null;
-  return rowToComponent(result.rows[0] as Record<string, unknown>);
+  return rowToWidget(result.rows[0] as Record<string, unknown>);
 }
 
-export async function getApprovedComponents(): Promise<DBComponent[]> {
+export async function getApprovedWidgets(): Promise<DBWidget[]> {
   await ensureSchema();
   const result = await getDb().execute(
-    "SELECT * FROM components WHERE status = 'approved' ORDER BY created_at DESC"
+    "SELECT * FROM widgets WHERE status = 'approved' ORDER BY created_at DESC"
   );
-  return result.rows.map((r) => rowToComponent(r as Record<string, unknown>));
+  return result.rows.map((r) => rowToWidget(r as Record<string, unknown>));
 }
 
-export async function getAllComponents(): Promise<DBComponent[]> {
+export async function getAllWidgets(): Promise<DBWidget[]> {
   await ensureSchema();
   const result = await getDb().execute(
-    "SELECT * FROM components ORDER BY created_at DESC"
+    "SELECT * FROM widgets ORDER BY created_at DESC"
   );
-  return result.rows.map((r) => rowToComponent(r as Record<string, unknown>));
+  return result.rows.map((r) => rowToWidget(r as Record<string, unknown>));
 }
 
-export async function createComponent(data: {
+export async function createWidget(data: {
   id: string;
   name: string;
   description?: string;
   definition: string;
   author?: string;
-  status?: DBComponent["status"];
+  status?: DBWidget["status"];
 }): Promise<void> {
   await ensureSchema();
   await getDb().execute({
-    sql: `INSERT OR IGNORE INTO components (id, name, description, definition, author, status)
+    sql: `INSERT OR IGNORE INTO widgets (id, name, description, definition, author, status)
           VALUES (?, ?, ?, ?, ?, ?)`,
     args: [
       data.id,
@@ -63,17 +63,17 @@ export async function createComponent(data: {
   });
 }
 
-export async function upsertComponent(data: {
+export async function upsertWidget(data: {
   id: string;
   name: string;
   description?: string;
   definition: string;
   author?: string;
-  status?: DBComponent["status"];
+  status?: DBWidget["status"];
 }): Promise<void> {
   await ensureSchema();
   await getDb().execute({
-    sql: `INSERT INTO components (id, name, description, definition, author, status)
+    sql: `INSERT INTO widgets (id, name, description, definition, author, status)
           VALUES (?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             name = excluded.name,
@@ -93,7 +93,7 @@ export async function upsertComponent(data: {
   });
 }
 
-export async function updateComponent(
+export async function updateWidget(
   id: string,
   data: { name?: string; description?: string; definition?: string; author?: string }
 ): Promise<void> {
@@ -108,18 +108,18 @@ export async function updateComponent(
   fields.push("updated_at = datetime('now')");
   args.push(id);
   await getDb().execute({
-    sql: `UPDATE components SET ${fields.join(", ")} WHERE id = ?`,
+    sql: `UPDATE widgets SET ${fields.join(", ")} WHERE id = ?`,
     args: args as import("@libsql/client").InValue[],
   });
 }
 
-export async function setComponentStatus(
+export async function setWidgetStatus(
   id: string,
-  status: DBComponent["status"]
+  status: DBWidget["status"]
 ): Promise<void> {
   await ensureSchema();
   await getDb().execute({
-    sql: "UPDATE components SET status = ?, updated_at = datetime('now') WHERE id = ?",
+    sql: "UPDATE widgets SET status = ?, updated_at = datetime('now') WHERE id = ?",
     args: [status, id],
   });
 }

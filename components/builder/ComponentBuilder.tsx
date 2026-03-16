@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { ComponentDef, BlockDef, BlockType, BlockProps } from "@/types/component";
+import type { WidgetDef, BlockDef, BlockType, BlockProps } from "@/types/widget";
 import { BlockPalette } from "./BlockPalette";
 import { BuilderCanvas } from "./BuilderCanvas";
 import { BlockInspector } from "./BlockInspector";
 import { StatePanel } from "./StatePanel";
 
-const EMPTY_DEF: ComponentDef = {
+const EMPTY_DEF: WidgetDef = {
   name: "New Component",
   description: "",
   state: [],
@@ -48,8 +48,8 @@ function makeBlock(type: BlockType): BlockDef {
 }
 
 type Props = {
-  initialDefinition?: ComponentDef;
-  onSave?: (def: ComponentDef) => Promise<void>;
+  initialDefinition?: WidgetDef;
+  onSave?: (def: WidgetDef) => Promise<void>;
   saveLabel?: string;
 };
 
@@ -58,7 +58,7 @@ export function ComponentBuilder({
   onSave,
   saveLabel = "Save",
 }: Props) {
-  const [definition, setDefinition] = useState<ComponentDef>(initialDefinition);
+  const [definition, setDefinition] = useState<WidgetDef>(initialDefinition);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");

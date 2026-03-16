@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { DBComponent } from "@/types/component";
+import type { DBWidget } from "@/types/widget";
 
-export function AdminComponentEditor({ comp }: { comp: DBComponent }) {
+export function AdminWidgetEditor({ comp }: { comp: DBWidget }) {
   const [definition, setDefinition] = useState(
     JSON.stringify(JSON.parse(comp.definition), null, 2)
   );
@@ -20,7 +20,7 @@ export function AdminComponentEditor({ comp }: { comp: DBComponent }) {
       setSaving(false);
       return;
     }
-    const res = await fetch(`/api/components/${comp.id}`, {
+    const res = await fetch(`/api/widgets/${comp.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: comp.name, description: comp.description, definition }),
@@ -32,7 +32,7 @@ export function AdminComponentEditor({ comp }: { comp: DBComponent }) {
   async function setStatus(status: "approved" | "rejected") {
     setSaving(true);
     setMessage("");
-    const res = await fetch(`/api/components/${comp.id}`, {
+    const res = await fetch(`/api/widgets/${comp.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),

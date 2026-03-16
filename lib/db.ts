@@ -16,7 +16,7 @@ export function getDb(): Client {
   return _db;
 }
 
-// Creates the posts and components tables if they don't exist. Called once per process.
+// Creates the posts and widgets tables if they don't exist. Called once per process.
 export async function ensureSchema(): Promise<void> {
   if (!_schemaReady) {
     const db = getDb();
@@ -33,7 +33,7 @@ export async function ensureSchema(): Promise<void> {
         updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `).then(() => db.execute(`
-      CREATE TABLE IF NOT EXISTS components (
+      CREATE TABLE IF NOT EXISTS widgets (
         id          TEXT PRIMARY KEY,
         name        TEXT NOT NULL,
         description TEXT NOT NULL DEFAULT '',
@@ -42,6 +42,12 @@ export async function ensureSchema(): Promise<void> {
         author      TEXT NOT NULL DEFAULT '',
         created_at  TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `)).then(() => db.execute(`
+      CREATE TABLE IF NOT EXISTS previews (
+        id         TEXT PRIMARY KEY,
+        content    TEXT NOT NULL,
+        expires_at TEXT NOT NULL DEFAULT (datetime('now', '+30 minutes'))
       )
     `)).then(() => undefined);
   }

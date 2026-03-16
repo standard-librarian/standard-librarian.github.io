@@ -3,5 +3,5 @@
 import { storePreview } from "@/lib/preview-store";
 
 export async function createPreview(content: string): Promise<string> {
-  return storePreview(content);
+  return await storePreview(content);
 }

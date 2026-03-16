@@ -128,6 +128,14 @@ func Add(a, b int) int {
 }
 \`\`\`</CodeSnippet>`}</Pre>
         </DocsSection>
+
+        <DocsSection title="Widget schema">
+          <p className="admin-docs-desc">
+            Full reference for the <code>WidgetDef</code> JSON schema: state variable types,
+            all action op types, every block type, template interpolation, and the scenario system.
+          </p>
+          <p><a href="/admin/docs/widget-schema" className="mdx-link">Open widget schema reference →</a></p>
+        </DocsSection>
       </div>
     </section>
   );

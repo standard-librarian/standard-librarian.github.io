@@ -1,10 +1,10 @@
 "use client";
 
-import type { BlockDef, BlockProps, ComponentDef } from "@/types/component";
+import type { BlockDef, BlockProps, WidgetDef } from "@/types/widget";
 
 type Props = {
   block: BlockDef | null;
-  definition: ComponentDef;
+  definition: WidgetDef;
   onUpdate: (id: string, props: BlockProps) => void;
 };
 

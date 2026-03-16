@@ -1,6 +1,6 @@
 "use client";
 
-import type { BlockType } from "@/types/component";
+import type { BlockType } from "@/types/widget";
 
 const BLOCK_TYPES: { type: BlockType; label: string; description: string }[] = [
   { type: "stat", label: "Stat", description: "Shows a labeled value" },

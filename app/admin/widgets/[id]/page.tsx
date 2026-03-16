@@ -1,22 +1,22 @@
 import { notFound } from "next/navigation";
-import { getComponentById } from "@/lib/components";
+import { getWidgetById } from "@/lib/widget-queries";
 import { DynamicComponentClient } from "@/components/DynamicComponentClient";
-import { AdminComponentEditor } from "@/components/admin/AdminComponentEditor";
-import type { ComponentDef } from "@/types/component";
+import { AdminWidgetEditor } from "@/components/admin/AdminWidgetEditor";
+import type { WidgetDef } from "@/types/widget";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminComponentReviewPage({
+export default async function AdminWidgetReviewPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const comp = await getComponentById(params.id);
+  const comp = await getWidgetById(params.id);
   if (!comp) notFound();
 
-  let definition: ComponentDef | null = null;
+  let definition: WidgetDef | null = null;
   try {
-    definition = JSON.parse(comp.definition) as ComponentDef;
+    definition = JSON.parse(comp.definition) as WidgetDef;
   } catch {
     // Invalid JSON — still show the editor
   }
@@ -46,7 +46,7 @@ export default async function AdminComponentReviewPage({
           </div>
         )}
 
-        <AdminComponentEditor comp={comp} />
+        <AdminWidgetEditor comp={comp} />
       </div>
     </section>
   );

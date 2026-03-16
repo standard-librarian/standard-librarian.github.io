@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAllComponents, createComponent } from "@/lib/components";
+import { getAllWidgets, createWidget } from "@/lib/widget-queries";
 
 export async function GET() {
-  const components = await getAllComponents();
+  const components = await getAllWidgets();
   return NextResponse.json(components);
 }
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "definition must be valid JSON" }, { status: 400 });
   }
 
-  await createComponent({
+  await createWidget({
     id,
     name,
     description: description ?? "",

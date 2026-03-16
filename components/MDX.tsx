@@ -5,10 +5,6 @@ import { CodeSnippet } from "@/components/CodeSnippet";
 import { DynamicComponent } from "@/components/DynamicComponent";
 import { MdhtPortrait } from "@/components/MdhtPortrait";
 import { MdhtHero } from "@/components/MdhtHero";
-import { RateLimitDemo } from "@/components/demos/RateLimitDemo";
-import { FixedWindowDemo } from "@/components/demos/FixedWindowDemo";
-import { SlidingWindowDemo } from "@/components/demos/SlidingWindowDemo";
-
 export const mdxComponents = {
   h1: (props: ComponentPropsWithoutRef<"h1">) => <h1 className="mdx-h1" {...props} />,
   h2: (props: ComponentPropsWithoutRef<"h2">) => <h2 className="mdx-h2" {...props} />,
@@ -32,8 +28,4 @@ export const mdxComponents = {
   DynamicComponent,
   MdhtPortrait,
   MdhtHero,
-  // Legacy: keep these registered so existing post content still works
-  RateLimitDemo,
-  FixedWindowDemo,
-  SlidingWindowDemo,
 };

@@ -4,7 +4,7 @@ import { useState } from "react";
 
 const PLACEHOLDER = JSON.stringify(
   {
-    name: "My Component",
+    name: "My Widget",
     description: "What it does",
     state: [{ id: "count", type: "number", initialValue: 0 }],
     actions: [
@@ -19,7 +19,7 @@ const PLACEHOLDER = JSON.stringify(
   2
 );
 
-export function ComponentSubmitForm() {
+export function WidgetSubmitForm() {
   const [id, setId] = useState("");
   const [name, setName] = useState("");
   const [author, setAuthor] = useState("");
@@ -43,7 +43,7 @@ export function ComponentSubmitForm() {
       return;
     }
 
-    const res = await fetch("/api/components", {
+    const res = await fetch("/api/widgets", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, name, author, definition: parsed }),
@@ -71,7 +71,7 @@ export function ComponentSubmitForm() {
       >
         <p style={{ fontSize: "1.1rem", marginBottom: "8px" }}>Submitted!</p>
         <p style={{ color: "var(--text-muted)" }}>
-          Your component is pending review. The admin will approve or reject it shortly.
+          Your widget is pending review. The admin will approve or reject it shortly.
         </p>
       </div>
     );
@@ -80,7 +80,7 @@ export function ComponentSubmitForm() {
   return (
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-        <span>Component ID (slug, e.g. <code className="mdx-code">my-counter</code>)</span>
+        <span>Widget ID (slug, e.g. <code className="mdx-code">my-counter</code>)</span>
         <input
           className="admin-input"
           type="text"
@@ -116,7 +116,7 @@ export function ComponentSubmitForm() {
       </label>
 
       <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-        <span>Component Definition (JSON)</span>
+        <span>Widget Definition (JSON)</span>
         <textarea
           value={definition}
           onChange={(e) => setDefinition(e.target.value)}

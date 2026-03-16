@@ -3,7 +3,7 @@
 import { useReducer, useEffect, useCallback, useState, useRef } from "react";
 import type { ReactNode } from "react";
 import type {
-  ComponentDef,
+  WidgetDef,
   BlockDef,
   Op,
   Condition,
@@ -12,7 +12,7 @@ import type {
   ContextRequestItem,
   ScenarioDef,
   ScenarioStep,
-} from "@/types/component";
+} from "@/types/widget";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
 
 type State = Record<
@@ -167,7 +167,7 @@ function applyOps(state: State, ops: Op[]): State {
   return s;
 }
 
-function buildInitialState(def: ComponentDef): State {
+function buildInitialState(def: WidgetDef): State {
   const state: State = {};
   for (const sv of def.state) {
     switch (sv.type) {
@@ -235,7 +235,7 @@ type SubProps = {
   state: State;
   runAction: (id: string) => void;
   dispatchOps: (ops: Op[]) => void;
-  def: ComponentDef;
+  def: WidgetDef;
   scenarioHandlers: ScenarioHandlers;
 };
 
@@ -389,7 +389,7 @@ function renderBlock(
   state: State,
   runAction: (id: string) => void,
   dispatchOps: (ops: Op[]) => void,
-  def: ComponentDef,
+  def: WidgetDef,
   scenarioHandlers: ScenarioHandlers
 ): ReactNode {
   // Universal visibleWhen guard
@@ -845,7 +845,7 @@ function renderBlock(
   }
 }
 
-export function DynamicComponentClient({ definition }: { definition: ComponentDef }) {
+export function DynamicComponentClient({ definition }: { definition: WidgetDef }) {
   const [state, dispatch] = useReducer(reducer, definition, buildInitialState);
   const scenario = definition.scenario;
   const scenarioTimersRef = useRef<number[]>([]);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPostBySlug } from "@/lib/posts";
 import { db, ensureSchema } from "@/lib/db";
+import { isAdmin } from "@/lib/auth";
 
 export async function GET(
   _req: NextRequest,
@@ -15,6 +16,10 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
+  if (!isAdmin(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const body = await request.json();
   const { title, date, tags, summary, content, reading_time } = body;
 
@@ -45,9 +50,13 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
+  if (!isAdmin(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   await ensureSchema();
   await db.execute({
     sql: "DELETE FROM posts WHERE slug = ?",

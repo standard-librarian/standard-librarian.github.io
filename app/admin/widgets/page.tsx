@@ -1,17 +1,17 @@
 import Link from "next/link";
-import { getAllComponents } from "@/lib/components";
+import { getAllWidgets } from "@/lib/widget-queries";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminComponentsPage() {
-  const components = await getAllComponents();
+export default async function AdminWidgetsPage() {
+  const widgets = await getAllWidgets();
 
   return (
     <section className="section">
       <div className="container">
         <div className="admin-header">
-          <h1 className="section-title">Components</h1>
-          <Link href="/components/submit" className="btn primary">
+          <h1 className="section-title">Widgets</h1>
+          <Link href="/widgets/submit" className="btn primary">
             Submit New
           </Link>
         </div>
@@ -27,7 +27,7 @@ export default async function AdminComponentsPage() {
             </tr>
           </thead>
           <tbody>
-            {components.map((comp) => (
+            {widgets.map((comp) => (
               <tr key={comp.id}>
                 <td>
                   <code>{comp.id}</code>
@@ -42,7 +42,7 @@ export default async function AdminComponentsPage() {
                 <td>{comp.created_at.slice(0, 10)}</td>
                 <td className="admin-actions">
                   <Link
-                    href={`/admin/components/${comp.id}`}
+                    href={`/admin/widgets/${comp.id}`}
                     className="admin-action-btn"
                   >
                     Review
@@ -50,10 +50,10 @@ export default async function AdminComponentsPage() {
                 </td>
               </tr>
             ))}
-            {components.length === 0 && (
+            {widgets.length === 0 && (
               <tr>
                 <td colSpan={6} style={{ textAlign: "center", color: "var(--text-muted)" }}>
-                  No components yet.
+                  No widgets yet.
                 </td>
               </tr>
             )}

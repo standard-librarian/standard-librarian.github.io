@@ -1,10 +1,10 @@
 "use client";
 
-import type { ComponentDef, StateVar, ActionDef } from "@/types/component";
+import type { WidgetDef, StateVar, ActionDef } from "@/types/widget";
 
 type Props = {
-  definition: ComponentDef;
-  onUpdate: (patch: Partial<ComponentDef>) => void;
+  definition: WidgetDef;
+  onUpdate: (patch: Partial<WidgetDef>) => void;
 };
 
 export function StatePanel({ definition, onUpdate }: Props) {
