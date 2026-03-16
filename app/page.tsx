@@ -13,6 +13,8 @@ const terminalCommands: Record<string, string> = {
     "Go, TypeScript, Postgres, Redis",
 };
 
+export const revalidate = 60;
+
 export default async function HomePage() {
   const posts = (await getAllPosts()).slice(0, 3);
 

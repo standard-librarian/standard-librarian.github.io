@@ -9,7 +9,7 @@ import { PostPrompt } from "@/components/PostPrompt";
 import { ShareButtons } from "@/components/ShareButtons";
 import { PostReactions } from "@/components/PostReactions";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export async function generateMetadata({
   params,
