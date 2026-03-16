@@ -82,8 +82,8 @@ Aristotle accepted potential infinity and rejected actual infinity. Modern set t
 
 The argument from correspondence is elegant and devastating. Consider two sets:
 
-- **A** = {1, 2, 3, 4, 5, 6, ...} — all natural numbers
-- **B** = {2, 3, 4, 5, 6, 7, ...} — all natural numbers greater than 1
+- **A** = &#123;1, 2, 3, 4, 5, 6, ...&#125; — all natural numbers
+- **B** = &#123;2, 3, 4, 5, 6, 7, ...&#125; — all natural numbers greater than 1
 
 B is clearly a *proper subset* of A. The number 1 belongs to A but not to B. By any intuitive notion of size, A should be *strictly larger* than B.
 
@@ -180,10 +180,18 @@ async function run() {
     )
   `);
 
-  // Insert or ignore (idempotent)
+  // Upsert (idempotent, updates on re-run)
   await db.execute({
-    sql: `INSERT OR IGNORE INTO posts (slug, title, date, tags, summary, content, reading_time)
-          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    sql: `INSERT INTO posts (slug, title, date, tags, summary, content, reading_time)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(slug) DO UPDATE SET
+            title        = excluded.title,
+            date         = excluded.date,
+            tags         = excluded.tags,
+            summary      = excluded.summary,
+            content      = excluded.content,
+            reading_time = excluded.reading_time,
+            updated_at   = datetime('now')`,
     args: [slug, title, date, tags, summary, content, "9 min read"],
   });
 
