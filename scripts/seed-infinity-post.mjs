@@ -54,7 +54,7 @@ const tags = JSON.stringify(["philosophy", "mathematics", "infinity", "three.js"
 const summary =
   "The medieval Islamic scholastics had a devastating argument against actual infinity. Cantor's famous diagonal proof doesn't refute them — it assumes the very thing it needs to prove.";
 
-const content = `<InfiniteWalker />
+const content = `<DynamicComponent id="infinity-walker" />
 
 There is a path behind you. Every moment that passed left a footprint. If you are here — reading this, thinking this — then that path had a beginning. It *had* to have a beginning. The Mutakallimun, the medieval Islamic scholastic theologians, were among the first to turn this intuition into a rigorous argument. They called it *Burhan Al-Tatbiq*: the Argument from Correspondence. And modern mathematics, for all its sophistication, has never quite answered it.
 
@@ -78,7 +78,7 @@ Aristotle accepted potential infinity and rejected actual infinity. Modern set t
 
 ## Burhan Al-Tatbiq
 
-<TatbiqScene />
+<DynamicComponent id="infinity-tatbiq" />
 
 The argument from correspondence is elegant and devastating. Consider two sets:
 
@@ -97,7 +97,7 @@ Ibn Hazm put it directly: if you grant that a set can be placed in one-to-one co
 
 ## What Cantor Actually Proved
 
-<CantorDiagonal />
+<DynamicComponent id="infinity-cantor" />
 
 Cantor's diagonal argument is one of the most celebrated results in mathematics. It proves that the real numbers cannot be put into one-to-one correspondence with the natural numbers — there are "more" real numbers than natural numbers. Walk through the steps above.
 
@@ -123,7 +123,7 @@ To say "the past is actually infinite" is to say there exists a completed infini
 
 ## What Infinity Actually Is
 
-<HilbertHotel />
+<DynamicComponent id="infinity-hotel" />
 
 Hilbert's Hotel is the standard illustration of how actual infinity behaves. A hotel with infinitely many rooms, all full: and yet a new guest can always be accommodated. Room 1 moves to Room 2, Room 2 to Room 3, and so on. Infinitely many guests shift; Room 1 is free.
 
@@ -145,7 +145,7 @@ The Mutakallimun's argument does not prove that God exists, or that the universe
 
 ## The Finite Universe
 
-<FiniteUniverse />
+<DynamicComponent id="infinity-universe" />
 
 The observable universe contains approximately 10⁸⁰ particles. This is a very large number. It is also a finite number. Modern cosmology strongly suggests the universe has a finite past — approximately 13.8 billion years — and a finite volume of causally connected space.
 
