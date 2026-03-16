@@ -1117,6 +1117,7 @@ export function DynamicComponentClient({ definition }: { definition: WidgetDef }
       }, delayMs);
       scenarioTimersRef.current.push(timeoutId);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenario, state.scenarioRunning, state.scenarioStep, dispatchOps, appendTokenOps, clearScenarioTimers]);
 
   useEffect(() => {

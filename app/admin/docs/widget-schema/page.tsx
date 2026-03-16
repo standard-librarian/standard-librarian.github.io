@@ -135,7 +135,7 @@ array       — generic array; holds MessageItem[] or ContextRequestItem[]`}</Pr
           <p className="admin-docs-desc">
             Each block has <code>id</code>, <code>type</code>, <code>props</code>, and optional{" "}
             <code>children</code> (for layout blocks). Any block can use{" "}
-            <code>visibleWhen: "booleanStateId"</code> in props to hide when the named boolean is
+            <code>{"visibleWhen: \"booleanStateId\""}</code> in props to hide when the named boolean is
             falsy.
           </p>
 
