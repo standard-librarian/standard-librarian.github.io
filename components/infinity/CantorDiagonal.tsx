@@ -4,9 +4,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import type * as THREE from "three";
 
 const GRID = 8;
-const CELL_W = 0.95;
+const CELL_W = 0.9;
 const CELL_H = 0.55;
-const CELL_D = 0.05;
 const GAP_X = 1.05;
 const GAP_Y = 0.65;
 
@@ -15,23 +14,23 @@ type StepId = 0 | 1 | 2 | 3 | 4;
 const STEP_LABELS: Record<StepId, { title: string; body: string }> = {
   0: {
     title: "The Setup",
-    body: "Assume ℝ is countable — imagine a complete list of all real numbers between 0 and 1.",
+    body: "Assume ℝ is countable — a complete list of all real numbers exists.",
   },
   1: {
     title: "The List",
-    body: "We write them as infinite decimals: r₁ = 0.a₁a₂a₃…, r₂ = 0.b₁b₂b₃…, and so on.",
+    body: "Every real number r₁, r₂, r₃... has an infinite decimal expansion.",
   },
   2: {
     title: "The Diagonal",
-    body: "Pick the nth digit of the nth number. This diagonal cuts across the entire list.",
+    body: "Take the nth digit of the nth number. This is the diagonal.",
   },
   3: {
     title: "The Flip",
-    body: "Change each diagonal digit (e.g. if it's 5, make it 6). The resulting number differs from every row at the highlighted position — it cannot be in the list.",
+    body: "Change each diagonal digit. The new number differs from every rₙ at position n.",
   },
   4: {
     title: "The Hidden Premise",
-    body: 'But the entire proof depends on Step 0 already being true. The "complete list" assumes a finished actual infinity. Where did that completed object come from?',
+    body: "But Step 0 assumed the list existed. The proof needs actual infinity to run — it cannot prove it.",
   },
 };
 
@@ -40,14 +39,10 @@ export function CantorDiagonal() {
   const [step, setStep] = useState<StepId>(0);
   const stepRef = useRef<StepId>(0);
   const sceneRef = useRef<{
-    renderer: THREE.WebGLRenderer;
-    scene: THREE.Scene;
-    camera: THREE.PerspectiveCamera;
     animId: number;
-    cells: THREE.Mesh[][];
-    rowLabels: HTMLDivElement[];
     ro: ResizeObserver;
     updateStep: (s: StepId) => void;
+    cleanup: () => void;
   } | null>(null);
 
   const HEIGHT = 340;
@@ -58,6 +53,16 @@ export function CantorDiagonal() {
 
     async function init() {
       const THREE = await import("three");
+      const { EffectComposer } = await import(
+        "three/examples/jsm/postprocessing/EffectComposer.js"
+      );
+      const { RenderPass } = await import(
+        "three/examples/jsm/postprocessing/RenderPass.js"
+      );
+      const { UnrealBloomPass } = await import(
+        "three/examples/jsm/postprocessing/UnrealBloomPass.js"
+      );
+
       if (cancelled || !mountRef.current) return;
 
       const container = mountRef.current;
@@ -67,6 +72,8 @@ export function CantorDiagonal() {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(W, HEIGHT);
       renderer.setClearColor(0x000000, 1);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
       const canvas = renderer.domElement;
       canvas.style.display = "block";
       canvas.style.width = "100%";
@@ -75,59 +82,87 @@ export function CantorDiagonal() {
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x000000);
+      scene.rotation.x = -0.2;
 
       const camera = new THREE.PerspectiveCamera(45, W / HEIGHT, 0.1, 100);
       camera.position.set(3.5, -1.5, 12);
       camera.lookAt(3.5, -1.5, 0);
 
-      // Lights
-      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-      const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-      dirLight.position.set(5, 10, 10);
-      scene.add(dirLight);
-      const backLight = new THREE.DirectionalLight(0x4040ff, 0.4);
-      backLight.position.set(-5, -5, -5);
-      scene.add(backLight);
+      const composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+      const bloom = new UnrealBloomPass(
+        new THREE.Vector2(W, HEIGHT),
+        1.2,
+        0.5,
+        0.05
+      );
+      composer.addPass(bloom);
 
-      // Create grid cells
-      const cellGeo = new THREE.BoxGeometry(CELL_W, CELL_H, CELL_D);
+      // Cell ShaderMaterial
+      const cellVert = /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `;
+      const cellFrag = /* glsl */ `
+        uniform vec3 cellColor;
+        uniform float borderGlow;
+        uniform float time;
+        uniform float opacity;
+        varying vec2 vUv;
+        void main() {
+          vec2 b = abs(vUv - 0.5) * 2.0;
+          float border = max(b.x, b.y);
+          float glow = smoothstep(0.85, 1.0, border) * borderGlow;
+          vec3 col = mix(cellColor * 0.3, cellColor, glow);
+          float a = opacity * (0.6 + glow * 0.4);
+          gl_FragColor = vec4(col, a);
+        }
+      `;
+
+      function makeCell(colorHex: string, visible: boolean): THREE.ShaderMaterial {
+        return new THREE.ShaderMaterial({
+          uniforms: {
+            cellColor: { value: new THREE.Color(colorHex) },
+            borderGlow: { value: 1.0 },
+            time: { value: 0 },
+            opacity: { value: visible ? 1.0 : 0.0 },
+          },
+          vertexShader: cellVert,
+          fragmentShader: cellFrag,
+          transparent: true,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        });
+      }
+
+      const cellGeo = new THREE.PlaneGeometry(CELL_W, CELL_H);
       const cells: THREE.Mesh[][] = [];
+      const cellMats: THREE.ShaderMaterial[][] = [];
 
       for (let row = 0; row < GRID; row++) {
         cells[row] = [];
+        cellMats[row] = [];
         for (let col = 0; col < GRID; col++) {
-          const mat = new THREE.MeshStandardMaterial({
-            color: 0x1c1c2e,
-            emissive: 0x0a0a18,
-            emissiveIntensity: 0.3,
-            roughness: 0.4,
-            metalness: 0.5,
-            transparent: true,
-            opacity: 0,
-          });
+          const mat = makeCell("#1e293b", false);
+          cellMats[row].push(mat);
           const mesh = new THREE.Mesh(cellGeo, mat);
           mesh.position.set(col * GAP_X, -(row * GAP_Y), 0);
-          mesh.rotation.x = -0.18;
           scene.add(mesh);
           cells[row].push(mesh);
         }
       }
 
-      // A "new number" row below
+      // New number row
       const newRowCells: THREE.Mesh[] = [];
+      const newRowMats: THREE.ShaderMaterial[] = [];
       for (let col = 0; col < GRID; col++) {
-        const mat = new THREE.MeshStandardMaterial({
-          color: 0x10b981,
-          emissive: 0x064e3b,
-          emissiveIntensity: 0.5,
-          roughness: 0.3,
-          metalness: 0.5,
-          transparent: true,
-          opacity: 0,
-        });
+        const mat = makeCell("#10b981", false);
+        newRowMats.push(mat);
         const mesh = new THREE.Mesh(cellGeo, mat);
-        mesh.position.set(col * GAP_X, -((GRID + 0.5) * GAP_Y), 0);
-        mesh.rotation.x = -0.18;
+        mesh.position.set(col * GAP_X, -((GRID + 0.8) * GAP_Y), 0);
         scene.add(mesh);
         newRowCells.push(mesh);
       }
@@ -135,26 +170,25 @@ export function CantorDiagonal() {
       // Label overlay
       container.style.position = "relative";
       const overlay = document.createElement("div");
-      overlay.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;";
+      overlay.style.cssText =
+        "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;";
       container.appendChild(overlay);
 
-      // Row labels r₁ … r₈
       const subscripts = ["₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈"];
       const rowLabels: HTMLDivElement[] = [];
       for (let row = 0; row < GRID; row++) {
         const div = document.createElement("div");
         div.textContent = `r${subscripts[row]}`;
         div.style.cssText =
-          "position:absolute;color:#737373;font-size:11px;font-family:monospace;transform:translate(-100%,-50%);padding-right:4px;opacity:0;transition:opacity 0.4s;";
+          "position:absolute;color:#737373;font-size:11px;font-family:monospace;transform:translate(-100%,-50%);padding-right:6px;opacity:0;transition:opacity 0.4s;";
         overlay.appendChild(div);
         rowLabels.push(div);
       }
 
-      // New row label
       const newRowLabel = document.createElement("div");
       newRowLabel.textContent = "d";
       newRowLabel.style.cssText =
-        "position:absolute;color:#10b981;font-size:11px;font-family:monospace;transform:translate(-100%,-50%);padding-right:4px;opacity:0;transition:opacity 0.4s;font-weight:bold;text-shadow:0 0 8px #10b981;";
+        "position:absolute;color:#10b981;font-size:11px;font-family:monospace;transform:translate(-100%,-50%);padding-right:6px;opacity:0;transition:opacity 0.4s;font-weight:bold;text-shadow:0 0 8px #10b981;";
       overlay.appendChild(newRowLabel);
 
       function projectToScreen(pos: THREE.Vector3): { x: number; y: number } {
@@ -164,72 +198,72 @@ export function CantorDiagonal() {
         return { x, y };
       }
 
-      function lerpColor(
-        mat: THREE.MeshStandardMaterial,
-        targetHex: number,
-        emissiveHex: number,
-        speed = 0.08
-      ) {
-        const target = new THREE.Color(targetHex);
-        const targetE = new THREE.Color(emissiveHex);
-        mat.color.lerp(target, speed);
-        mat.emissive.lerp(targetE, speed);
-      }
-
-      // Per-frame targets
-      const colorTargets: { color: number; emissive: number; opacity: number }[][] = Array.from(
-        { length: GRID },
-        () => Array.from({ length: GRID }, () => ({ color: 0x1c1c2e, emissive: 0x0a0a18, opacity: 0 }))
-      );
-      const newRowTargets = Array.from({ length: GRID }, () => ({ color: 0x10b981, emissive: 0x064e3b, opacity: 0 }));
+      // Target state for lerping
+      const colorTargets: { color: string; opacity: number; borderGlow: number }[][] =
+        Array.from({ length: GRID }, () =>
+          Array.from({ length: GRID }, () => ({
+            color: "#1e293b",
+            opacity: 0,
+            borderGlow: 1.0,
+          }))
+        );
+      const newRowTargets = Array.from({ length: GRID }, () => ({
+        color: "#10b981",
+        opacity: 0,
+        borderGlow: 1.0,
+      }));
 
       function updateStep(s: StepId) {
         stepRef.current = s;
 
-        // Reset all to neutral
+        // Reset all
         for (let row = 0; row < GRID; row++) {
           for (let col = 0; col < GRID; col++) {
-            colorTargets[row][col] = { color: 0x1c1c2e, emissive: 0x0a0a18, opacity: s >= 1 ? 1 : 0 };
+            colorTargets[row][col] = {
+              color: "#1e293b",
+              opacity: s >= 1 ? 1.0 : 0.0,
+              borderGlow: 1.0,
+            };
           }
         }
         for (let col = 0; col < GRID; col++) {
-          newRowTargets[col] = { color: 0x10b981, emissive: 0x064e3b, opacity: 0 };
+          newRowTargets[col] = { color: "#10b981", opacity: 0, borderGlow: 1.0 };
         }
 
-        if (s === 0) {
-          // All faded
-        } else if (s === 1) {
-          // All neutral visible
-        } else if (s === 2) {
-          // Diagonal gold
+        if (s === 2) {
           for (let i = 0; i < GRID; i++) {
-            colorTargets[i][i] = { color: 0xf59e0b, emissive: 0x78350f, opacity: 1 };
+            colorTargets[i][i] = { color: "#f59e0b", opacity: 1, borderGlow: 2.0 };
           }
         } else if (s === 3) {
-          // Diagonal purple (flipped), new row green
           for (let i = 0; i < GRID; i++) {
-            colorTargets[i][i] = { color: 0x7c3aed, emissive: 0x3b0e8c, opacity: 1 };
+            colorTargets[i][i] = { color: "#8b5cf6", opacity: 1, borderGlow: 2.0 };
           }
           for (let col = 0; col < GRID; col++) {
-            newRowTargets[col] = { color: 0x10b981, emissive: 0x064e3b, opacity: 1 };
+            newRowTargets[col] = { color: "#10b981", opacity: 1, borderGlow: 1.5 };
           }
         } else if (s === 4) {
-          // Everything fades except first row (premise) which goes red
           for (let row = 0; row < GRID; row++) {
             for (let col = 0; col < GRID; col++) {
               if (row === 0) {
-                colorTargets[row][col] = { color: 0xef4444, emissive: 0x7f1d1d, opacity: 1 };
+                colorTargets[row][col] = {
+                  color: "#ef4444",
+                  opacity: 1,
+                  borderGlow: 2.5,
+                };
               } else {
-                colorTargets[row][col] = { color: 0x1c1c2e, emissive: 0x0a0a18, opacity: 0.15 };
+                colorTargets[row][col] = {
+                  color: "#1e293b",
+                  opacity: 0.1,
+                  borderGlow: 0.3,
+                };
               }
             }
           }
           for (let col = 0; col < GRID; col++) {
-            newRowTargets[col] = { color: 0x10b981, emissive: 0x064e3b, opacity: 0.15 };
+            newRowTargets[col] = { color: "#10b981", opacity: 0.1, borderGlow: 0.3 };
           }
         }
 
-        // Row labels visibility
         rowLabels.forEach((lbl, i) => {
           lbl.style.opacity = s >= 1 ? (s === 4 && i > 0 ? "0.2" : "1") : "0";
           if (i === 0 && s === 4) {
@@ -243,59 +277,69 @@ export function CantorDiagonal() {
         newRowLabel.style.opacity = s === 3 ? "1" : s === 4 ? "0.2" : "0";
       }
 
+      const clock = new THREE.Clock();
+      const tmpColor = new THREE.Color();
+
       function animate() {
         const id = requestAnimationFrame(animate);
         sceneRef.current!.animId = id;
 
-        // Lerp cell colors
+        const elapsed = clock.getElapsedTime();
+
         for (let row = 0; row < GRID; row++) {
           for (let col = 0; col < GRID; col++) {
-            const mat = cells[row][col].material as THREE.MeshStandardMaterial;
+            const mat = cellMats[row][col];
             const t = colorTargets[row][col];
-            mat.color.lerp(new THREE.Color(t.color), 0.06);
-            mat.emissive.lerp(new THREE.Color(t.emissive), 0.06);
-            mat.opacity += (t.opacity - mat.opacity) * 0.06;
+            tmpColor.set(t.color);
+            mat.uniforms.cellColor.value.lerp(tmpColor, 0.07);
+            mat.uniforms.opacity.value +=
+              (t.opacity - mat.uniforms.opacity.value) * 0.07;
+            mat.uniforms.borderGlow.value +=
+              (t.borderGlow - mat.uniforms.borderGlow.value) * 0.07;
+            mat.uniforms.time.value = elapsed;
 
-            // Pulse on diagonal in step 2
             if (stepRef.current === 2 && row === col) {
-              mat.emissiveIntensity = 0.5 + Math.sin(Date.now() * 0.003 + row * 0.5) * 0.3;
+              mat.uniforms.borderGlow.value =
+                2.0 + 0.5 * Math.sin(elapsed * 3.0 + row * 0.5);
             } else if (stepRef.current === 4 && row === 0) {
-              mat.emissiveIntensity = 0.5 + Math.sin(Date.now() * 0.004) * 0.3;
-            } else {
-              mat.emissiveIntensity = 0.3;
+              mat.uniforms.borderGlow.value =
+                2.0 + 0.8 * Math.sin(elapsed * 4.0);
             }
           }
         }
 
-        // New row cells
         for (let col = 0; col < GRID; col++) {
-          const mat = newRowCells[col].material as THREE.MeshStandardMaterial;
+          const mat = newRowMats[col];
           const t = newRowTargets[col];
-          mat.color.lerp(new THREE.Color(t.color), 0.06);
-          mat.emissive.lerp(new THREE.Color(t.emissive), 0.06);
-          mat.opacity += (t.opacity - mat.opacity) * 0.06;
+          tmpColor.set(t.color);
+          mat.uniforms.cellColor.value.lerp(tmpColor, 0.07);
+          mat.uniforms.opacity.value +=
+            (t.opacity - mat.uniforms.opacity.value) * 0.07;
+          mat.uniforms.borderGlow.value +=
+            (t.borderGlow - mat.uniforms.borderGlow.value) * 0.07;
+          mat.uniforms.time.value = elapsed;
           if (stepRef.current === 3) {
-            mat.emissiveIntensity = 0.4 + Math.sin(Date.now() * 0.003 + col * 0.3) * 0.2;
+            mat.uniforms.borderGlow.value =
+              1.5 + 0.3 * Math.sin(elapsed * 2.5 + col * 0.3);
           }
         }
 
-        // Slow camera drift
-        const time = Date.now() * 0.0002;
-        camera.position.x = 3.5 + Math.sin(time) * 0.3;
+        // Subtle camera drift
+        camera.position.x = 3.5 + Math.sin(elapsed * 0.18) * 0.3;
         camera.lookAt(3.5, -1.5, 0);
 
-        renderer.render(scene, camera);
+        composer.render();
 
-        // Update row label positions
+        // Row label positions
         for (let row = 0; row < GRID; row++) {
           const worldPos = cells[row][0].position.clone();
+          // Apply scene rotation to world pos for projection
           worldPos.x -= 0.6;
           const p = projectToScreen(worldPos);
           rowLabels[row].style.left = `${p.x}px`;
           rowLabels[row].style.top = `${p.y}px`;
         }
 
-        // New row label position
         const nrPos = newRowCells[0].position.clone();
         nrPos.x -= 0.6;
         const nrP = projectToScreen(nrPos);
@@ -309,18 +353,20 @@ export function CantorDiagonal() {
         camera.aspect = nw / HEIGHT;
         camera.updateProjectionMatrix();
         renderer.setSize(nw, HEIGHT);
+        composer.setSize(nw, HEIGHT);
       });
       ro.observe(container);
 
       sceneRef.current = {
-        renderer,
-        scene,
-        camera,
         animId: 0,
-        cells,
-        rowLabels,
         ro,
         updateStep,
+        cleanup: () => {
+          ro.disconnect();
+          renderer.dispose();
+          overlay.remove();
+          canvas.remove();
+        },
       };
 
       updateStep(0);
@@ -333,26 +379,16 @@ export function CantorDiagonal() {
       cancelled = true;
       if (sceneRef.current) {
         cancelAnimationFrame(sceneRef.current.animId);
-        sceneRef.current.ro.disconnect();
-        sceneRef.current.renderer.dispose();
-        if (mountRef.current) {
-          const canvas = mountRef.current.querySelector("canvas");
-          canvas?.remove();
-          const overlay = mountRef.current.querySelector("div");
-          overlay?.remove();
-        }
+        sceneRef.current.cleanup();
         sceneRef.current = null;
       }
     };
   }, []);
 
-  const goTo = useCallback(
-    (s: StepId) => {
-      setStep(s);
-      sceneRef.current?.updateStep(s);
-    },
-    []
-  );
+  const goTo = useCallback((s: StepId) => {
+    setStep(s);
+    sceneRef.current?.updateStep(s);
+  }, []);
 
   const info = STEP_LABELS[step];
 
@@ -374,7 +410,6 @@ export function CantorDiagonal() {
           borderTop: "1px solid #1f1f1f",
         }}
       >
-        {/* Step indicators */}
         <div style={{ display: "flex", gap: "6px", marginBottom: "12px", alignItems: "center" }}>
           {([0, 1, 2, 3, 4] as StepId[]).map((s) => (
             <button
@@ -400,13 +435,7 @@ export function CantorDiagonal() {
             style={{
               marginLeft: "8px",
               color:
-                step === 4
-                  ? "#ef4444"
-                  : step === 3
-                  ? "#10b981"
-                  : step === 2
-                  ? "#f59e0b"
-                  : "#f5f5f5",
+                step === 4 ? "#ef4444" : step === 3 ? "#10b981" : step === 2 ? "#f59e0b" : "#f5f5f5",
               fontSize: "13px",
               fontFamily: "monospace",
               fontWeight: "600",

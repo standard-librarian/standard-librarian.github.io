@@ -15,15 +15,27 @@ export function FiniteUniverse() {
 
     async function init() {
       const THREE = await import("three");
+      const { EffectComposer } = await import(
+        "three/examples/jsm/postprocessing/EffectComposer.js"
+      );
+      const { RenderPass } = await import(
+        "three/examples/jsm/postprocessing/RenderPass.js"
+      );
+      const { UnrealBloomPass } = await import(
+        "three/examples/jsm/postprocessing/UnrealBloomPass.js"
+      );
+
       if (cancelled || !mountRef.current) return;
 
       const container = mountRef.current;
       const W = container.clientWidth;
 
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(W, HEIGHT);
       renderer.setClearColor(0x000000, 1);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.0;
       const canvas = renderer.domElement;
       canvas.style.display = "block";
       canvas.style.width = "100%";
@@ -37,93 +49,132 @@ export function FiniteUniverse() {
       camera.position.set(0, 0, 18);
       camera.lookAt(0, 0, 0);
 
-      // Particles
+      const composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+      const bloom = new UnrealBloomPass(
+        new THREE.Vector2(W, HEIGHT),
+        1.0,
+        0.8,
+        0.1
+      );
+      composer.addPass(bloom);
+
+      // Particle attributes
       const positions = new Float32Array(PARTICLE_COUNT * 3);
-      const colors = new Float32Array(PARTICLE_COUNT * 3);
+      const aColor = new Float32Array(PARTICLE_COUNT * 3);
+      const aSize = new Float32Array(PARTICLE_COUNT);
+      const aSpeed = new Float32Array(PARTICLE_COUNT);
 
       for (let i = 0; i < PARTICLE_COUNT; i++) {
-        // Spherical distribution
-        const r = 6 * Math.cbrt(Math.random()); // cube root for uniform sphere fill
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(2 * Math.random() - 1);
+        const r = 2 + Math.random() * 6; // 2–8
+        const dir = new THREE.Vector3().randomDirection();
+        positions[i * 3] = dir.x * r;
+        positions[i * 3 + 1] = dir.y * r;
+        positions[i * 3 + 2] = dir.z * r;
 
-        positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-        positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-        positions[i * 3 + 2] = r * Math.cos(phi);
+        aSize[i] = 1.5 + Math.random() * 2.5; // 1.5–4.0
 
-        // Subtle color variation: mostly white with hints of blue/gold
         const variant = Math.random();
-        if (variant < 0.1) {
-          colors[i * 3] = 0.5 + Math.random() * 0.3;
-          colors[i * 3 + 1] = 0.7 + Math.random() * 0.3;
-          colors[i * 3 + 2] = 1.0;
-        } else if (variant < 0.2) {
-          colors[i * 3] = 1.0;
-          colors[i * 3 + 1] = 0.9 + Math.random() * 0.1;
-          colors[i * 3 + 2] = 0.5 + Math.random() * 0.3;
+        if (variant < 0.33) {
+          // white
+          aColor[i * 3] = 1.0;
+          aColor[i * 3 + 1] = 1.0;
+          aColor[i * 3 + 2] = 1.0;
+        } else if (variant < 0.66) {
+          // blue-white
+          aColor[i * 3] = 0.7;
+          aColor[i * 3 + 1] = 0.8;
+          aColor[i * 3 + 2] = 1.0;
         } else {
-          const v = 0.7 + Math.random() * 0.3;
-          colors[i * 3] = v;
-          colors[i * 3 + 1] = v;
-          colors[i * 3 + 2] = v;
+          // warm
+          aColor[i * 3] = 1.0;
+          aColor[i * 3 + 1] = 0.9;
+          aColor[i * 3 + 2] = 0.7;
         }
+
+        aSpeed[i] = 0.5 + Math.random() * 1.5; // 0.5–2.0
       }
 
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      geo.setAttribute("aColor", new THREE.BufferAttribute(aColor, 3));
+      geo.setAttribute("aSize", new THREE.BufferAttribute(aSize, 1));
+      geo.setAttribute("aSpeed", new THREE.BufferAttribute(aSpeed, 1));
 
-      const mat = new THREE.PointsMaterial({
-        size: 0.06,
-        vertexColors: true,
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          time: { value: 0 },
+        },
+        vertexShader: /* glsl */ `
+          attribute float aSize;
+          attribute vec3 aColor;
+          attribute float aSpeed;
+          varying vec3 vColor;
+          varying float vAlpha;
+          uniform float time;
+          void main() {
+            vColor = aColor;
+            vAlpha = 0.6 + 0.4 * sin(time * aSpeed + position.x * 10.0);
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            gl_PointSize = aSize * (250.0 / -mvPosition.z);
+            gl_Position = projectionMatrix * mvPosition;
+          }
+        `,
+        fragmentShader: /* glsl */ `
+          varying vec3 vColor;
+          varying float vAlpha;
+          void main() {
+            float d = distance(gl_PointCoord, vec2(0.5));
+            if (d > 0.5) discard;
+            float alpha = vAlpha * (1.0 - smoothstep(0.2, 0.5, d));
+            gl_FragColor = vec4(vColor, alpha);
+          }
+        `,
         transparent: true,
-        opacity: 0.85,
-        sizeAttenuation: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
       });
 
       const points = new THREE.Points(geo, mat);
       scene.add(points);
 
-      // Subtle outer glow ring
-      const ringGeo = new THREE.RingGeometry(6.5, 7, 64);
-      const ringMat = new THREE.MeshBasicMaterial({
-        color: 0x1e40af,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.12,
-      });
-      const ring = new THREE.Mesh(ringGeo, ringMat);
-      scene.add(ring);
+      const clock = new THREE.Clock();
+      let animId = 0;
+
+      function animate() {
+        animId = requestAnimationFrame(animate);
+        const elapsed = clock.getElapsedTime();
+        mat.uniforms.time.value = elapsed;
+        points.rotation.y += 0.0015;
+        points.rotation.x += 0.0003;
+        composer.render();
+      }
+      animate();
 
       const ro = new ResizeObserver(() => {
+        if (!container) return;
         const nw = container.clientWidth;
         camera.aspect = nw / HEIGHT;
         camera.updateProjectionMatrix();
         renderer.setSize(nw, HEIGHT);
+        composer.setSize(nw, HEIGHT);
       });
       ro.observe(container);
 
-      let animId = 0;
-      function animate() {
-        animId = requestAnimationFrame(animate);
-        points.rotation.y += 0.0015;
-        points.rotation.x += 0.0003;
-        ring.rotation.z += 0.0008;
-        renderer.render(scene, camera);
-      }
-      animate();
-
-      // Count up animation
+      // Count-up animation
       const target = 1e80;
       let count = 0;
+      // Use exponential easing: start fast, slow down near end
+      let phase = 0;
       const countInterval = setInterval(() => {
         if (cancelled) { clearInterval(countInterval); return; }
-        count = Math.min(count + target / 60, target);
+        phase = Math.min(phase + 0.018, 1.0);
+        const eased = 1 - Math.pow(1 - phase, 2.5);
+        count = eased * target;
         setDisplayCount(count);
-        if (count >= target) clearInterval(countInterval);
+        if (phase >= 1.0) clearInterval(countInterval);
       }, 16);
 
-      // Store cleanup
       (container as any)._cleanup = () => {
         cancelAnimationFrame(animId);
         ro.disconnect();
@@ -145,8 +196,8 @@ export function FiniteUniverse() {
 
   function formatCount(n: number): string {
     if (n >= 1e80) return "~10⁸⁰";
-    const exp = Math.floor(Math.log10(n || 1));
-    return `~10${exp.toString().replace(/(\d)/g, (c) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[parseInt(c)])}`;
+    const exp = Math.floor(Math.log10(Math.max(n, 1)));
+    return `~10${exp.toString().split("").map((c) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[parseInt(c)] ?? c).join("")}`;
   }
 
   return (
@@ -172,6 +223,7 @@ export function FiniteUniverse() {
           display: "flex",
           flexDirection: "column",
           gap: "4px",
+          pointerEvents: "none",
         }}
       >
         <div
@@ -186,13 +238,7 @@ export function FiniteUniverse() {
         >
           {formatCount(displayCount)} particles
         </div>
-        <div
-          style={{
-            color: "#93c5fd",
-            fontSize: "13px",
-            fontFamily: "system-ui, sans-serif",
-          }}
-        >
+        <div style={{ color: "#93c5fd", fontSize: "13px", fontFamily: "system-ui, sans-serif" }}>
           Observable universe: finite and measurable
         </div>
         <div

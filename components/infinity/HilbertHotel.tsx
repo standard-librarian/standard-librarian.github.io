@@ -11,14 +11,10 @@ export function HilbertHotel() {
   const [counter, setCounter] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const sceneRef = useRef<{
-    renderer: THREE.WebGLRenderer;
-    scene: THREE.Scene;
-    camera: THREE.PerspectiveCamera;
     animId: number;
-    leftPanels: THREE.Mesh[];
-    rightPanels: THREE.Mesh[];
-    roomLabels: HTMLDivElement[];
     ro: ResizeObserver;
+    panelMats: THREE.ShaderMaterial[][];
+    cleanup: () => void;
   } | null>(null);
   const waveTimeoutRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -30,6 +26,16 @@ export function HilbertHotel() {
 
     async function init() {
       const THREE = await import("three");
+      const { EffectComposer } = await import(
+        "three/examples/jsm/postprocessing/EffectComposer.js"
+      );
+      const { RenderPass } = await import(
+        "three/examples/jsm/postprocessing/RenderPass.js"
+      );
+      const { UnrealBloomPass } = await import(
+        "three/examples/jsm/postprocessing/UnrealBloomPass.js"
+      );
+
       if (cancelled || !mountRef.current) return;
 
       const container = mountRef.current;
@@ -39,6 +45,8 @@ export function HilbertHotel() {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(W, HEIGHT);
       renderer.setClearColor(0x000000, 1);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
       const canvas = renderer.domElement;
       canvas.style.display = "block";
       canvas.style.width = "100%";
@@ -47,129 +55,157 @@ export function HilbertHotel() {
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x000000);
-      scene.fog = new THREE.Fog(0x000000, 5, 50);
+      scene.fog = new THREE.FogExp2(0x000000, 0.04);
 
-      const camera = new THREE.PerspectiveCamera(65, W / HEIGHT, 0.1, 200);
-      camera.position.set(0, 2, 8);
-      camera.lookAt(0, 0, -20);
+      const camera = new THREE.PerspectiveCamera(60, W / HEIGHT, 0.1, 200);
+      camera.position.set(0, 0.5, 6);
+      camera.lookAt(0, 0, -30);
 
-      // Lights
-      scene.add(new THREE.AmbientLight(0x1a1a3a, 1));
-      const corridorLight = new THREE.PointLight(0x3b82f6, 4, 20);
-      corridorLight.position.set(0, 3, 0);
-      scene.add(corridorLight);
+      const composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+      const bloom = new UnrealBloomPass(
+        new THREE.Vector2(W, HEIGHT),
+        1.4,
+        0.5,
+        0.05
+      );
+      composer.addPass(bloom);
 
-      // Floor
-      const floorGeo = new THREE.PlaneGeometry(10, 80);
-      const floorMat = new THREE.MeshStandardMaterial({
-        color: 0x050508,
-        roughness: 0.9,
-        metalness: 0.1,
-      });
-      const floor = new THREE.Mesh(floorGeo, floorMat);
-      floor.rotation.x = -Math.PI / 2;
-      floor.position.set(0, -1.5, -30);
-      scene.add(floor);
+      // Panel ShaderMaterial with scan-line animation
+      const panelVert = /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `;
+      const panelFrag = /* glsl */ `
+        uniform float time;
+        uniform vec3 roomColor;
+        uniform float wavePhase;
+        varying vec2 vUv;
+        void main() {
+          float scan = fract(vUv.y + time * 0.3 + wavePhase);
+          float line = smoothstep(0.95, 1.0, scan) * 0.5;
+          float edge = 1.0 - abs(vUv.x - 0.5) * 2.0;
+          edge = pow(edge, 3.0);
+          vec3 col = roomColor * (0.3 + edge * 0.7 + line);
+          gl_FragColor = vec4(col, 0.8);
+        }
+      `;
 
-      // Ceiling
-      const ceilGeo = new THREE.PlaneGeometry(10, 80);
-      const ceilMat = new THREE.MeshStandardMaterial({ color: 0x040407, roughness: 1 });
-      const ceil = new THREE.Mesh(ceilGeo, ceilMat);
-      ceil.rotation.x = Math.PI / 2;
-      ceil.position.set(0, 3.5, -30);
-      scene.add(ceil);
+      const panelGeo = new THREE.PlaneGeometry(1.2, 2.5);
+      const panelMats: THREE.ShaderMaterial[][] = [];
 
-      // Create room door frames
-      const leftPanels: THREE.Mesh[] = [];
-      const rightPanels: THREE.Mesh[] = [];
-      const panelGeo = new THREE.BoxGeometry(0.25, 3.5, 0.15);
-
-      // Row labels
+      // Label overlay
       container.style.position = "relative";
       const overlay = document.createElement("div");
-      overlay.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;";
+      overlay.style.cssText =
+        "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;";
       container.appendChild(overlay);
 
       const roomLabels: HTMLDivElement[] = [];
 
       for (let i = 0; i < NUM_ROOMS; i++) {
         const z = -(i * ROOM_SPACING);
-        const brightness = Math.max(0.05, 1 - i * 0.06);
+        const brightness = Math.max(0.12, 1 - i * 0.05);
 
-        const mat = () =>
-          new THREE.MeshStandardMaterial({
-            color: 0x1e40af,
-            emissive: 0x1e3a8a,
-            emissiveIntensity: 0.5 * brightness,
-            roughness: 0.3,
-            metalness: 0.7,
+        const makePanel = (side: number): THREE.ShaderMaterial => {
+          const mat = new THREE.ShaderMaterial({
+            uniforms: {
+              time: { value: 0 },
+              roomColor: { value: new THREE.Color(0x1e40af).multiplyScalar(brightness) },
+              wavePhase: { value: i * 0.4 },
+            },
+            vertexShader: panelVert,
+            fragmentShader: panelFrag,
+            transparent: true,
+            side: THREE.DoubleSide,
           });
+          const mesh = new THREE.Mesh(panelGeo, mat);
+          mesh.position.set(side * 2.5, 0, z);
+          scene.add(mesh);
+          return mat;
+        };
 
-        // Door frame: two vertical pillars + a top bar
-        const leftPillar = new THREE.Mesh(panelGeo, mat());
-        leftPillar.position.set(-2.5, 1, z);
-        scene.add(leftPillar);
-        leftPanels.push(leftPillar);
-
-        const rightPillar = new THREE.Mesh(panelGeo, mat());
-        rightPillar.position.set(2.5, 1, z);
-        scene.add(rightPillar);
-        rightPanels.push(rightPillar);
+        const leftMat = makePanel(-1);
+        const rightMat = makePanel(1);
+        panelMats.push([leftMat, rightMat]);
 
         // Top bar
-        const topBarGeo = new THREE.BoxGeometry(5.25, 0.2, 0.15);
-        const topBar = new THREE.Mesh(topBarGeo, mat());
-        topBar.position.set(0, 2.75, z);
-        scene.add(topBar);
+        const barGeo = new THREE.PlaneGeometry(5.0, 0.15);
+        const barMat = new THREE.ShaderMaterial({
+          uniforms: {
+            time: { value: 0 },
+            roomColor: { value: new THREE.Color(0x1e40af).multiplyScalar(brightness) },
+            wavePhase: { value: i * 0.4 + 1.0 },
+          },
+          vertexShader: panelVert,
+          fragmentShader: panelFrag,
+          transparent: true,
+          side: THREE.DoubleSide,
+        });
+        const bar = new THREE.Mesh(barGeo, barMat);
+        bar.position.set(0, 1.3, z);
+        scene.add(bar);
 
-        // Room light
-        if (i < 8) {
-          const roomGlow = new THREE.PointLight(0x1d4ed8, 1.2 * brightness, 3);
-          roomGlow.position.set(0, 1, z);
-          scene.add(roomGlow);
-        }
-
-        // Label
+        // Room number label
         const div = document.createElement("div");
         div.textContent = String(i + 1);
         div.style.cssText =
-          "position:absolute;color:#93c5fd;font-size:10px;font-family:monospace;transform:translate(-50%,-50%);opacity:" +
+          "position:absolute;color:#93c5fd;font-size:10px;font-family:monospace;transform:translate(-50%,-50%);text-shadow:0 0 6px #3b82f6;opacity:" +
           brightness.toFixed(2) +
-          ";text-shadow:0 0 6px #3b82f6;";
+          ";";
         overlay.appendChild(div);
         roomLabels.push(div);
       }
 
+      // Floor
+      const floorGeo = new THREE.PlaneGeometry(6, 80);
+      const floorMat = new THREE.MeshStandardMaterial({
+        color: 0x050508,
+        roughness: 0.95,
+        metalness: 0.05,
+      });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.set(0, -1.3, -20);
+      scene.add(floor);
+
       // Counter display
       const counterDiv = document.createElement("div");
       counterDiv.style.cssText =
-        "position:absolute;top:12px;right:16px;color:#fbbf24;font-size:20px;font-family:monospace;font-weight:bold;text-shadow:0 0 12px #f59e0b;opacity:0;transition:opacity 0.3s;";
+        "position:absolute;top:12px;right:16px;color:#fbbf24;font-size:22px;font-family:monospace;font-weight:bold;text-shadow:0 0 16px #f59e0b,0 0 32px #f59e0b;opacity:0;transition:opacity 0.3s;";
       overlay.appendChild(counterDiv);
 
       function projectToScreen(pos: THREE.Vector3): { x: number; y: number } {
         const v = pos.clone().project(camera);
-        const w = renderer.domElement.clientWidth || W;
-        const x = ((v.x + 1) / 2) * w;
+        const x = ((v.x + 1) / 2) * W;
         const y = ((-v.y + 1) / 2) * HEIGHT;
         return { x, y };
       }
+
+      const clock = new THREE.Clock();
 
       function animate() {
         const id = requestAnimationFrame(animate);
         sceneRef.current!.animId = id;
 
-        const time = Date.now() * 0.001;
-        // Slow corridor breathing
-        corridorLight.intensity = 3.5 + Math.sin(time * 0.5) * 0.5;
-        camera.position.y = 2 + Math.sin(time * 0.3) * 0.1;
+        const elapsed = clock.getElapsedTime();
 
-        renderer.render(scene, camera);
-
-        // Update room label positions
+        // Update all panel time uniforms
         for (let i = 0; i < NUM_ROOMS; i++) {
-          const worldPos = new THREE.Vector3(0, 1.5, -(i * ROOM_SPACING));
+          panelMats[i][0].uniforms.time.value = elapsed;
+          panelMats[i][1].uniforms.time.value = elapsed;
+        }
+
+        camera.position.y = 0.5 + Math.sin(elapsed * 0.3) * 0.08;
+
+        composer.render();
+
+        for (let i = 0; i < NUM_ROOMS; i++) {
+          const worldPos = new THREE.Vector3(0, 0.8, -(i * ROOM_SPACING));
           const p = projectToScreen(worldPos);
-          // Only show if in front of camera and in viewport
           if (p.x > 0 && p.x < W && p.y > 0 && p.y < HEIGHT) {
             roomLabels[i].style.left = `${p.x}px`;
             roomLabels[i].style.top = `${p.y}px`;
@@ -180,27 +216,32 @@ export function HilbertHotel() {
         }
       }
 
+      const ro = new ResizeObserver(() => {
+        if (!container) return;
+        const nw = container.clientWidth;
+        camera.aspect = nw / HEIGHT;
+        camera.updateProjectionMatrix();
+        renderer.setSize(nw, HEIGHT);
+        composer.setSize(nw, HEIGHT);
+      });
+      ro.observe(container);
+
       sceneRef.current = {
-        renderer,
-        scene,
-        camera,
         animId: 0,
-        leftPanels,
-        rightPanels,
-        roomLabels,
-        ro: new ResizeObserver(() => {
-          const nw = container.clientWidth;
-          camera.aspect = nw / HEIGHT;
-          camera.updateProjectionMatrix();
-          renderer.setSize(nw, HEIGHT);
-        }),
+        ro,
+        panelMats,
+        cleanup: () => {
+          ro.disconnect();
+          renderer.dispose();
+          overlay.remove();
+          canvas.remove();
+        },
       };
 
-      sceneRef.current.ro.observe(container);
-      animate();
+      // Expose counterDiv on ref
+      (sceneRef.current as unknown as Record<string, unknown>).counterDiv = counterDiv;
 
-      // Expose counterDiv
-      (sceneRef.current as any).counterDiv = counterDiv;
+      animate();
     }
 
     init();
@@ -210,30 +251,32 @@ export function HilbertHotel() {
       waveTimeoutRef.current.forEach(clearTimeout);
       if (sceneRef.current) {
         cancelAnimationFrame(sceneRef.current.animId);
-        sceneRef.current.ro.disconnect();
-        sceneRef.current.renderer.dispose();
-        if (mountRef.current) {
-          mountRef.current.querySelector("canvas")?.remove();
-          mountRef.current.querySelector("div")?.remove();
-        }
+        sceneRef.current.cleanup();
         sceneRef.current = null;
       }
     };
   }, []);
 
-  function flashRoom(i: number, color: number, duration = 400) {
+  function animateRoomColor(
+    i: number,
+    r: number, g: number, b: number,
+    duration: number,
+    tr: number, tg: number, tb: number
+  ) {
     if (!sceneRef.current) return;
-    const { leftPanels, rightPanels } = sceneRef.current;
-    const setColor = (c: number) => {
-      [leftPanels[i], rightPanels[i]].forEach((p) => {
-        const mat = p.material as THREE.MeshStandardMaterial;
-        mat.color.setHex(c);
-        mat.emissive.setHex(c === 0xfbbf24 ? 0x92400e : 0x1e3a8a);
-        mat.emissiveIntensity = c === 0xfbbf24 ? 1.2 : 0.5;
+    const mats = sceneRef.current.panelMats[i];
+    const brightness = Math.max(0.12, 1 - i * 0.05);
+
+    mats.forEach((mat) => {
+      mat.uniforms.roomColor.value.setRGB(r * brightness, g * brightness, b * brightness);
+    });
+
+    const t = setTimeout(() => {
+      if (!sceneRef.current) return;
+      mats.forEach((mat) => {
+        mat.uniforms.roomColor.value.setRGB(tr * brightness, tg * brightness, tb * brightness);
       });
-    };
-    setColor(color);
-    const t = setTimeout(() => setColor(0x1e40af), duration);
+    }, duration);
     waveTimeoutRef.current.push(t);
   }
 
@@ -241,17 +284,25 @@ export function HilbertHotel() {
     if (busy || !sceneRef.current) return;
     setBusy(true);
     setCounter("∞ + 1 = ∞");
-    const counterDiv = (sceneRef.current as any).counterDiv as HTMLDivElement;
-    if (counterDiv) { counterDiv.style.opacity = "1"; counterDiv.textContent = "∞ + 1 = ∞"; }
+    const counterDiv = (sceneRef.current as unknown as Record<string, HTMLDivElement>)
+      .counterDiv;
+    if (counterDiv) {
+      counterDiv.style.opacity = "1";
+      counterDiv.textContent = "∞ + 1 = ∞";
+    }
 
-    // Wave from front to back
+    // BASE blue: #1e40af = 0.118, 0.251, 0.686
+    const [br, bg, bb] = [0.118, 0.251, 0.686];
+    // YELLOW: #fbbf24 = 0.984, 0.749, 0.141
+    const [yr, yg, yb] = [0.984, 0.749, 0.141];
+
     for (let i = 0; i < NUM_ROOMS; i++) {
       const t = setTimeout(() => {
-        flashRoom(i, 0xfbbf24, 350);
+        animateRoomColor(i, yr, yg, yb, 380, br, bg, bb);
         if (i === NUM_ROOMS - 1) {
-          setTimeout(() => setBusy(false), 600);
+          setTimeout(() => setBusy(false), 700);
         }
-      }, i * 120);
+      }, i * 80);
       waveTimeoutRef.current.push(t);
     }
   }
@@ -260,32 +311,45 @@ export function HilbertHotel() {
     if (busy || !sceneRef.current) return;
     setBusy(true);
     setCounter("∞ + ∞ = ∞");
-    const counterDiv = (sceneRef.current as any).counterDiv as HTMLDivElement;
-    if (counterDiv) { counterDiv.style.opacity = "1"; counterDiv.textContent = "∞ + ∞ = ∞"; }
+    const counterDiv = (sceneRef.current as unknown as Record<string, HTMLDivElement>)
+      .counterDiv;
+    if (counterDiv) {
+      counterDiv.style.opacity = "1";
+      counterDiv.textContent = "∞ + ∞ = ∞";
+    }
 
-    const colors = [0xef4444, 0xf59e0b, 0x10b981, 0x7c3aed, 0x3b82f6, 0xec4899];
+    type RGB = [number, number, number];
+    const colorPalette: RGB[] = [
+      [0.937, 0.267, 0.267],
+      [0.984, 0.620, 0.040],
+      [0.063, 0.725, 0.506],
+      [0.486, 0.361, 0.929],
+      [0.231, 0.510, 0.965],
+      [0.925, 0.302, 0.596],
+    ];
+
     let flashCount = 0;
-    const totalFlashes = 40;
+    const totalFlashes = 35;
+    const [br, bg, bb] = [0.118, 0.251, 0.686];
 
     const doFlash = () => {
       if (!sceneRef.current) return;
       for (let i = 0; i < NUM_ROOMS; i++) {
-        const c = colors[Math.floor(Math.random() * colors.length)];
-        flashRoom(i, c, 200);
+        const [r, g, b] = colorPalette[Math.floor(Math.random() * colorPalette.length)];
+        animateRoomColor(i, r, g, b, 180, r, g, b);
       }
       flashCount++;
       if (flashCount < totalFlashes) {
-        const t = setTimeout(doFlash, 120);
+        const t = setTimeout(doFlash, 100);
         waveTimeoutRef.current.push(t);
       } else {
-        // Settle back to blue wave
         for (let i = 0; i < NUM_ROOMS; i++) {
           const t = setTimeout(() => {
-            flashRoom(i, 0x3b82f6, 500);
+            animateRoomColor(i, br, bg, bb, 600, br, bg, bb);
             if (i === NUM_ROOMS - 1) {
-              setTimeout(() => setBusy(false), 600);
+              setTimeout(() => setBusy(false), 700);
             }
-          }, i * 80);
+          }, i * 60);
           waveTimeoutRef.current.push(t);
         }
       }
