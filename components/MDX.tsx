@@ -5,6 +5,11 @@ import { CodeSnippet } from "@/components/CodeSnippet";
 import { DynamicComponent } from "@/components/DynamicComponent";
 import { MdhtPortrait } from "@/components/MdhtPortrait";
 import { MdhtHero } from "@/components/MdhtHero";
+import { TatbiqScene } from "@/components/infinity/TatbiqScene";
+import { CantorDiagonal } from "@/components/infinity/CantorDiagonal";
+import { HilbertHotel } from "@/components/infinity/HilbertHotel";
+import { FiniteUniverse } from "@/components/infinity/FiniteUniverse";
+import { InfiniteWalker } from "@/components/infinity/InfiniteWalker";
 export const mdxComponents = {
   h1: (props: ComponentPropsWithoutRef<"h1">) => <h1 className="mdx-h1" {...props} />,
   h2: (props: ComponentPropsWithoutRef<"h2">) => <h2 className="mdx-h2" {...props} />,
@@ -28,4 +33,9 @@ export const mdxComponents = {
   DynamicComponent,
   MdhtPortrait,
   MdhtHero,
+  TatbiqScene,
+  CantorDiagonal,
+  HilbertHotel,
+  FiniteUniverse,
+  InfiniteWalker,
 };
