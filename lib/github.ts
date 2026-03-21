@@ -34,6 +34,7 @@ export interface OSSPR {
   created_at: string;
   updated_at: string;
   merged_at: string | null;
+  body: string | null;
   repo: {
     full_name: string;
     html_url: string;
@@ -76,6 +77,7 @@ export async function fetchOSSPRs(): Promise<OSSPR[]> {
     state: string;
     created_at: string;
     updated_at: string;
+    body: string | null;
     pull_request: { merged_at: string | null };
     repository_url: string;
   }> = data.items ?? [];
@@ -118,6 +120,7 @@ export async function fetchOSSPRs(): Promise<OSSPR[]> {
         created_at: item.created_at,
         updated_at: item.updated_at,
         merged_at: item.pull_request?.merged_at ?? null,
+        body: item.body ?? null,
         repo,
       };
     })

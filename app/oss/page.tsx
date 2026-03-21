@@ -36,24 +36,12 @@ function formatRelativeTime(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-function formatStars(n: number): string {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
-}
-
 export default async function OSSPage() {
   const data = await getGitHubData();
 
   const totalPRs = data?.prs.length ?? 0;
   const mergedPRs = data?.prs.filter((p) => p.merged_at).length ?? 0;
   const totalRepos = data?.repos.length ?? 0;
-  const totalStars = data
-    ? [...new Set(data.prs.map((p) => p.repo.full_name))].reduce((sum, name) => {
-        const pr = data.prs.find((p) => p.repo.full_name === name);
-        return sum + (pr?.repo.stargazers_count ?? 0);
-      }, 0)
-    : 0;
 
   return (
     <section className="section">
@@ -82,12 +70,6 @@ export default async function OSSPage() {
                 <div>
                   <span className="oss-stat-value">{totalRepos}</span>
                   <span className="oss-stat-label">Own repos</span>
-                </div>
-              )}
-              {totalStars > 0 && (
-                <div>
-                  <span className="oss-stat-value">{formatStars(totalStars)}</span>
-                  <span className="oss-stat-label">Stars reached</span>
                 </div>
               )}
             </div>

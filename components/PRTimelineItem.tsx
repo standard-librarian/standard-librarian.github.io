@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { OSSPR } from "@/lib/github";
 
 function formatStars(n: number): string {
@@ -19,17 +22,14 @@ export default function PRTimelineItem({
   pr: OSSPR;
   isLast: boolean;
 }) {
+  const [open, setOpen] = useState(false);
+
   const isMerged = !!pr.merged_at;
   const isOpen = pr.state === "open";
-
   const statusLabel = isMerged ? "merged" : isOpen ? "open" : "closed";
   const badgeClass = `oss-pr-badge${isMerged ? " oss-pr-badge-merged" : ""}`;
 
-  const metaParts: string[] = [];
-  metaParts.push(`#${pr.number}`);
-  if (pr.repo.language) metaParts.push(pr.repo.language);
-  metaParts.push(`${formatStars(pr.repo.stargazers_count)} ★`);
-  metaParts.push(formatDate(pr.created_at));
+  const trimmedBody = pr.body?.trim() ?? "";
 
   return (
     <div className="oss-pr">
@@ -44,6 +44,7 @@ export default function PRTimelineItem({
         </a>
         <span className={badgeClass}>{statusLabel}</span>
       </div>
+
       <div className="oss-pr-meta">
         <a
           href={pr.repo.html_url}
@@ -53,10 +54,33 @@ export default function PRTimelineItem({
         >
           {pr.repo.full_name}
         </a>
-        {metaParts.map((p, i) => (
-          <span key={i}>{p}</span>
-        ))}
+        <span>#{pr.number}</span>
+        {pr.repo.language && <span>{pr.repo.language}</span>}
+        <span>{formatStars(pr.repo.stargazers_count)} ★</span>
+        <span>{formatDate(pr.created_at)}</span>
+        {trimmedBody && (
+          <button
+            className="oss-pr-toggle"
+            onClick={() => setOpen((v) => !v)}
+            type="button"
+          >
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 10 10"
+              fill="currentColor"
+              style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}
+            >
+              <path d="M3 2l4 3-4 3V2z" />
+            </svg>
+            {open ? "hide" : "description"}
+          </button>
+        )}
       </div>
+
+      {open && trimmedBody && (
+        <div className="oss-pr-body">{trimmedBody}</div>
+      )}
     </div>
   );
 }
