@@ -7,7 +7,7 @@ import { fetchGitHubCache } from "@/lib/github";
 
 export const metadata: Metadata = {
   title: "OSS",
-  description: "My open source contributions, featured projects, and PR activity",
+  description: "Open source contributions, featured projects, and PR activity.",
 };
 
 export const revalidate = 3600;
@@ -17,9 +17,8 @@ async function getGitHubData(): Promise<GitHubCache | null> {
     const cached = await getCacheEntry<GitHubCache>("github:data");
     if (cached) return cached;
   } catch {
-    // DB not available, fall through
+    // DB not available
   }
-
   try {
     return await fetchGitHubCache();
   } catch {
@@ -34,65 +33,91 @@ function formatRelativeTime(iso: string): string {
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function formatStars(n: number): string {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
 }
 
 export default async function OSSPage() {
   const data = await getGitHubData();
 
+  const totalPRs = data?.prs.length ?? 0;
+  const mergedPRs = data?.prs.filter((p) => p.merged_at).length ?? 0;
+  const totalRepos = data?.repos.length ?? 0;
+  const totalStars = data
+    ? [...new Set(data.prs.map((p) => p.repo.full_name))].reduce((sum, name) => {
+        const pr = data.prs.find((p) => p.repo.full_name === name);
+        return sum + (pr?.repo.stargazers_count ?? 0);
+      }, 0)
+    : 0;
+
   return (
     <section className="section">
       <div className="container">
         <div className="reveal">
-          {/* Page header */}
-          <div className="mb-10">
-            <div className="flex items-baseline justify-between gap-4 flex-wrap">
-              <h1 className="section-title">Open Source</h1>
-              {data && (
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  updated {formatRelativeTime(data.last_updated)}
-                </span>
-              )}
-            </div>
-            <p className="mt-3 text-lg text-gray-600 dark:text-gray-400">
-              Projects I maintain and contributions to the open source ecosystem.
-            </p>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
+            <h1 className="section-title" style={{ margin: 0 }}>Open source</h1>
+            {data && (
+              <span style={{ fontSize: "0.78rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                synced {formatRelativeTime(data.last_updated)}
+              </span>
+            )}
           </div>
 
-          {!data && (
-            <div className="rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-4 text-sm text-yellow-800 dark:text-yellow-200">
-              GitHub data is not yet available. Run the cron endpoint to populate it.
+          {data && (
+            <div className="oss-stats">
+              <div>
+                <span className="oss-stat-value">{totalPRs}</span>
+                <span className="oss-stat-label">Pull requests</span>
+              </div>
+              <div>
+                <span className="oss-stat-value">{mergedPRs}</span>
+                <span className="oss-stat-label">Merged</span>
+              </div>
+              {totalRepos > 0 && (
+                <div>
+                  <span className="oss-stat-value">{totalRepos}</span>
+                  <span className="oss-stat-label">Own repos</span>
+                </div>
+              )}
+              {totalStars > 0 && (
+                <div>
+                  <span className="oss-stat-value">{formatStars(totalStars)}</span>
+                  <span className="oss-stat-label">Stars reached</span>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Featured repos */}
+          {!data && (
+            <p className="oss-empty">
+              GitHub data is not yet available.{" "}
+              <code style={{ fontSize: "0.88em", background: "var(--surface-2)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--line)" }}>
+                GET /api/cron/github
+              </code>{" "}
+              to populate it.
+            </p>
+          )}
+
           {data && data.repos.length > 0 && (
-            <section className="mb-12">
-              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-gray-500" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M2 2.5A2.5 2.5 0 014.5 0h8.75a.75.75 0 01.75.75v12.5a.75.75 0 01-.75.75h-2.5a.75.75 0 010-1.5h1.75v-2h-8a1 1 0 00-.714 1.7.75.75 0 01-1.072 1.05A2.495 2.495 0 012 11.5v-9zm10.5-1V9h-8c-.356 0-.694.074-1 .208V2.5a1 1 0 011-1h8zM5 12.25v3.25a.25.25 0 00.4.2l1.45-1.087a.25.25 0 01.3 0L8.6 15.7a.25.25 0 00.4-.2v-3.25a.25.25 0 00-.25-.25h-3.5a.25.25 0 00-.25.25z" />
-                </svg>
-                Featured Projects
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div style={{ marginBottom: 52 }}>
+              <p className="oss-section-label">Featured repos</p>
+              <div className="oss-repo-grid">
                 {data.repos.map((repo) => (
                   <RepoCard key={repo.full_name} repo={repo} />
                 ))}
               </div>
-            </section>
+            </div>
           )}
 
-          {/* PR timeline */}
           {data && data.prs.length > 0 && (
-            <section>
-              <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                <svg className="w-5 h-5 text-gray-500" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
-                </svg>
-                PR Activity
-              </h2>
-              <div>
+            <div>
+              <p className="oss-section-label">PR activity</p>
+              <div className="oss-pr-list">
                 {data.prs.map((pr, i) => (
                   <PRTimelineItem
                     key={pr.id}
@@ -101,14 +126,16 @@ export default async function OSSPage() {
                   />
                 ))}
               </div>
-            </section>
+            </div>
           )}
 
           {data && data.repos.length === 0 && data.prs.length === 0 && (
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              No data yet. Tag a repo with the{" "}
-              <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">blog-featured</code>{" "}
-              GitHub topic to feature it here.
+            <p className="oss-empty">
+              No data yet. Tag a GitHub repo with the topic{" "}
+              <code style={{ fontSize: "0.88em", background: "var(--surface-2)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--line)" }}>
+                blog-featured
+              </code>{" "}
+              to surface it here.
             </p>
           )}
         </div>
