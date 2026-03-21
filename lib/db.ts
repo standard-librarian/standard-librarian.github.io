@@ -80,6 +80,42 @@ export async function getReactionsForPost(slug: string): Promise<{ emoji: string
   return result.rows.map((r) => ({ emoji: String(r.emoji), count: Number(r.count) }));
 }
 
+let _githubCacheReady: Promise<void> | undefined;
+
+export async function ensureGitHubCacheSchema(): Promise<void> {
+  if (!_githubCacheReady) {
+    _githubCacheReady = getDb().execute(`
+      CREATE TABLE IF NOT EXISTS github_cache (
+        key        TEXT PRIMARY KEY,
+        data       TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `).then(() => undefined);
+  }
+  return _githubCacheReady;
+}
+
+export async function setCacheEntry(key: string, data: unknown): Promise<void> {
+  await ensureGitHubCacheSchema();
+  const now = new Date().toISOString();
+  await getDb().execute({
+    sql: `INSERT INTO github_cache (key, data, updated_at)
+          VALUES (?, ?, ?)
+          ON CONFLICT(key) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
+    args: [key, JSON.stringify(data), now],
+  });
+}
+
+export async function getCacheEntry<T>(key: string): Promise<T | null> {
+  await ensureGitHubCacheSchema();
+  const result = await getDb().execute({
+    sql: `SELECT data FROM github_cache WHERE key = ?`,
+    args: [key],
+  });
+  if (!result.rows[0]) return null;
+  return JSON.parse(result.rows[0].data as string) as T;
+}
+
 // Proxy so callers can write `db.execute(...)` without calling getDb() explicitly
 export const db = new Proxy({} as Client, {
   get(_target, prop: string | symbol) {

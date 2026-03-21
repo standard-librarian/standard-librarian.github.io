@@ -12,6 +12,7 @@ export function SiteHeader() {
           </Link>
           <nav className="nav-links">
             <Link href="/posts">Posts</Link>
+            <Link href="/oss">OSS</Link>
             <Link href="/about">About</Link>
             <Link href="/now">Now</Link>
           </nav>
