@@ -1,7 +1,7 @@
 import { getCacheEntry } from "@/lib/db";
 import type { Metadata } from "next";
 import RepoCard from "@/components/RepoCard";
-import PRTimelineItem from "@/components/PRTimelineItem";
+import PRList from "@/components/PRList";
 import type { GitHubCache } from "@/lib/github";
 import { fetchGitHubCache } from "@/lib/github";
 
@@ -99,15 +99,7 @@ export default async function OSSPage() {
           {data && data.prs.length > 0 && (
             <div>
               <p className="oss-section-label">PR activity</p>
-              <div className="oss-pr-list">
-                {data.prs.map((pr, i) => (
-                  <PRTimelineItem
-                    key={pr.id}
-                    pr={pr}
-                    isLast={i === data.prs.length - 1}
-                  />
-                ))}
-              </div>
+              <PRList prs={data.prs} />
             </div>
           )}
 

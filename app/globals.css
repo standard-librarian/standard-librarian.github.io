@@ -2385,6 +2385,57 @@ main {
     color: var(--ink);
 }
 
+.oss-filter-row {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.oss-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid var(--line-strong);
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: var(--font-sans), system-ui, sans-serif;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition:
+        color 0.15s,
+        border-color 0.15s,
+        background 0.15s;
+}
+
+.oss-filter-btn:hover {
+    color: var(--ink);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.oss-filter-btn-active {
+    color: var(--ink);
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.oss-filter-count {
+    font-size: 0.68rem;
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-variant-numeric: tabular-nums;
+}
+
+.oss-filter-btn-active .oss-filter-count {
+    color: var(--ink);
+}
+
 .oss-pr-toggle {
     display: inline-flex;
     align-items: center;
