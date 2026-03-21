@@ -54,7 +54,7 @@ function extractItems(block: string): string[] {
   const items: string[] = [];
   let pos = 0;
   while (true) {
-    const idx = block.indexOf("\\resumeItem", pos);
+    const idx = block.indexOf("\\resumeItem{", pos);
     if (idx === -1) break;
     const [text, next] = extractArg(block, idx + "\\resumeItem".length);
     items.push(texInline(text));
@@ -162,10 +162,8 @@ function parseProjects(): ProjectEntry[] {
     if (idx === -1) break;
 
     const [args, after] = extractArgs(src, idx + "\\resumeProjectHeading".length, 2);
-    // args[0]: {\textbf{name}} — strip outer braces handled by extractArg already
-    // strip trailing \textbf wrapper if present
-    const rawName = args[0].replace(/^\\textbf\{/, "").replace(/\}$/, "");
-    const name = texInline(rawName);
+    // args[0] may be \textbf{name} (Open Source) — convert via texInline then strip HTML tags
+    const name = texInline(args[0]).replace(/<\/?strong>/g, "").replace(/<\/?em>/g, "");
     const tech = texInline(args[1]);
 
     const listStart = src.indexOf("\\resumeItemListStart", after);
