@@ -1,0 +1,40 @@
+\section{Projects}
+  \resumeSubHeadingListStart
+
+    \resumeProjectHeading
+      {\textbf{o16g -- Outcome Engineering Platform}}{Go + React $|$ Qdrant $|$ MCP $|$ OpenAI}
+    \resumeItemListStart
+      \resumeItem{Designed a knowledge graph with recursive CTE traversal, weight-strengthened edges, and a compound query pipeline (vector seed $\rightarrow$ graph traverse $\rightarrow$ filter $\rightarrow$ rank) that replaced tribal knowledge with queryable institutional memory.}
+      \resumeItem{Hand-rolled a JSON-RPC 2.0 MCP server with OAuth 2.0 PKCE, exposing 48+ tools for outcomes, skills, runs, evidence, graph queries, and Slack --- adopted by engineers across Claude Code, Cursor, and Windsurf.}
+      \resumeItem{Built Qdrant-backed semantic search (1536-dim OpenAI embeddings) with content-hash dedup, cross-entity similarity, and two interactive graph visualizations: D3.js force-graph (Obsidian View) and RoughJS/dagre (Excalidraw View).}
+      \resumeItem{Designed AES-GCM encrypted skill injection with per-agent secret scoping; built a Bubble Tea TUI CLI (30+ commands) with live dashboard, interactive permissions grid, and non-interactive scripting mode.}
+    \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{Context Engineering} (Open Source)}{Elixir $|$ Phoenix $|$ pgvector $|$ Bumblebee}
+    \resumeItemListStart
+      \resumeItem{Built an AI-native organizational knowledge management system --- the Elixir project that directly inspired o16g at 4Sale --- featuring semantic search over ADRs, failures, meetings, and code snapshots with local 384-dim embeddings (no API keys).}
+      \resumeItem{Implemented a multi-agent debate system with automatic judge evaluation, a relevance decay worker that archives stale context, and agent skills for Claude/Copilot/Cursor integration.}
+    \resumeItemListEnd
+    {\href{https://github.com/standard-librarian/context-engineer}{GitHub Repository}}
+
+    \resumeProjectHeading
+      {\textbf{SFTPGo Manager} (Open Source)}{Go $|$ SFTPGo $|$ MinIO $|$ Docker}
+    \resumeItemListStart
+      \resumeItem{Built a multi-tenant SFTP management platform that replaced AWS Transfer Family at 4Sale, eliminating per-GB transfer fees by self-hosting SFTPGo + MinIO with runtime tenant provisioning, external auth hooks, and automatic CSV-to-database ingestion.}
+    \resumeItemListEnd
+    {\href{https://github.com/standard-librarian/sftpgo-manager}{GitHub Repository}}
+
+    \resumeProjectHeading
+      {\textbf{Opream Platform}}{Java Spring Boot $|$ WebSocket $|$ Keycloak}
+    \resumeItemListStart
+      \resumeItem{Developed real-time WebSocket chat API with RBAC, JWT refresh, throttling, and auditable activity logs for a meetings and social integrations platform.}
+    \resumeItemListEnd
+
+    \resumeProjectHeading
+      {\textbf{Al Azhar Islamic Learning Platform}}{Spring Boot $|$ Docker $|$ Kubernetes $|$ CI/CD}
+    \resumeItemListStart
+      \resumeItem{Hardened identity with RBAC, MFA, and social sign-in; set up Docker/Kubernetes deployments with CI/CD for zero-downtime updates; built S3-backed media handling with on-the-fly image optimization.}
+    \resumeItemListEnd
+
+  \resumeSubHeadingListEnd

@@ -1,0 +1,44 @@
+\section{Work Experience}
+  \resumeSubHeadingListStart
+
+    \resumeSubheadingWork
+      {Backend Engineer}{Dec 2025 -- Present}
+      {4Sale International Co.}{Kuwait (Hybrid)}
+      {}{}
+      \resumeItemListStart
+        \resumeItem{Architected and shipped Go microservices (Echo, Gin) using Clean and Hexagonal Architecture for Kuwait's largest classified ads marketplace, serving millions of monthly active users.}
+        \resumeItem{Took sole initiative to design and build \textbf{o16g} --- an Outcome Engineering platform (Go + React) that replaced ad-hoc onboarding with a structured knowledge graph, cutting new-engineer ramp-up from weeks to days by giving AI agents instant access to institutional context, past failures, and architectural decisions.}
+        \resumeItem{Built a \textbf{knowledge graph} with recursive CTE traversal, edge-weight strengthening on repeated references, and a compound query pipeline (vector seed $\rightarrow$ traverse $\rightarrow$ filter $\rightarrow$ rank) enabling engineers and agents to discover cross-entity relationships in seconds.}
+        \resumeItem{Implemented a hand-rolled \textbf{MCP server} (JSON-RPC 2.0 / Streamable HTTP) exposing 48+ tools with OAuth 2.0 PKCE, auto-agent registration, and skill-level permission gating --- adopted across 8 IDE platforms (Claude Code, Cursor, Windsurf, VS Code, Codex).}
+        \resumeItem{Integrated \textbf{Qdrant} vector search (OpenAI 1536-dim embeddings) with content-hash deduplication and cross-entity semantic queries, surfaced through an interactive D3.js force-graph (Obsidian View) used daily by the team for context discovery.}
+        \resumeItem{Built the \textbf{Developer Platform} that opened the marketplace to third-party integrators --- authenticated API keys, bulk listing creation (up to 100 per call), HMAC-signed webhooks over RabbitMQ Super Streams, and per-app usage analytics.}
+        \resumeItem{Delivered the \textbf{cashier service} powering all marketplace payments --- KNet gateway, wallets, subscriptions with auto-renewal --- verified end-to-end with BDD tests (Godog + Testcontainers).}
+        \resumeItem{Implemented a \textbf{Saga orchestrator} for distributed addon processing with compensation/rollback via Kafka and a self-healing service registry that auto-deregistered unhealthy nodes.}
+        \resumeItem{Shipped a centralized \textbf{SSO admin console} (Go + React) with RBAC, eliminating repeated login across 6+ internal admin panels via JWT + iframe postMessage token passing.}
+        \resumeItem{Open-sourced \textbf{SFTPGo Manager}, replacing AWS Transfer Family with a self-hosted multi-tenant SFTP platform (SFTPGo + MinIO), eliminating \$0.30/GB transfer fees and enabling runtime tenant provisioning via REST API.}
+      \resumeItemListEnd
+    {Skills: Go $|$ Echo $|$ Gin $|$ PostgreSQL $|$ MySQL $|$ Kafka $|$ RabbitMQ $|$ AWS (EKS, S3, SQS, DynamoDB) $|$ Docker $|$ Kubernetes $|$ Qdrant $|$ OpenAI $|$ MCP $|$ Redis $|$ Clean Architecture}
+
+    \resumeSubheadingWork
+      {Software Engineer}{Oct 2024 -- Nov 2025}
+      {Opream Digital Solutions.}{Cairo, Egypt}
+      {}{}
+      \resumeItemListStart
+        \resumeItem{Delivered a microservice backend in Java Spring Boot with service discovery and API gateways, enabling the platform to scale from monolith to distributed architecture.}
+        \resumeItem{Integrated \textbf{Keycloak} for centralized authentication and authorization across all microservices, consolidating previously fragmented access management.}
+        \resumeItem{Implemented \textbf{Spring State Machines} to automate multi-step business workflows, reducing manual intervention in complex approval and processing flows.}
+        \resumeItem{Designed and documented RESTful APIs consumed by frontend and third-party partners, following OpenAPI standards for scalability.}
+      \resumeItemListEnd
+    {Skills: Java Spring Boot $|$ Docker $|$ Kubernetes $|$ Microservices $|$ Service Discovery $|$ API Gateways $|$ Keycloak $|$ Consul $|$ Spring State Machine}
+
+    \resumeSubheadingWork
+      {Software Engineering Intern}{Sep 2023 -- Oct 2023}
+      {Master Micro.}{Cairo, Egypt}
+      {}{}
+      \resumeItemListStart
+        \resumeItem{Profiled and optimized application performance using Python, snakeviz, and yappi, identifying bottlenecks that improved app responsiveness.}
+        \resumeItem{Resolved cross-platform compatibility bugs through systematic root cause analysis, contributing to a more stable release cycle.}
+      \resumeItemListEnd
+    {Skills: Performance Engineering $|$ Python $|$ Debugging Tools $|$ Object-Oriented Design}
+
+  \resumeSubHeadingListEnd
