@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: "Open source contributions, featured projects, and PR activity.",
 };
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 async function getGitHubData(): Promise<GitHubCache | null> {
   try {
