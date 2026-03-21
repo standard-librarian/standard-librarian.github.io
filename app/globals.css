@@ -18,28 +18,13 @@
     box-sizing: border-box;
 }
 
-@property --sel-hue {
-    syntax: "<number>";
-    inherits: true;
-    initial-value: 48;
-}
-
-@keyframes sel-hue-cycle {
-    0%   { --sel-hue: 48;  }
-    25%  { --sel-hue: 185; }
-    50%  { --sel-hue: 210; }
-    75%  { --sel-hue: 270; }
-    100% { --sel-hue: 48;  }
-}
-
 html {
     scroll-behavior: smooth;
     scrollbar-gutter: stable;
-    animation: sel-hue-cycle 5s linear infinite;
 }
 
 ::selection {
-    background-color: hsl(calc(var(--sel-hue) * 1deg), 100%, 56%);
+    background-color: #FFE500;
     color: #000;
     text-shadow: 0.4px 0 0 #000, -0.4px 0 0 #000;
 }

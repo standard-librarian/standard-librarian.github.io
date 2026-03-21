@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { site } from "@/lib/site";
 import { CommandPalette } from "@/components/CommandPalette";
 import { getSearchItems } from "@/lib/search";
+import ElectricSelection from "@/components/ElectricSelection";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -56,6 +57,7 @@ export default async function RootLayout({
           <main>{children}</main>
           <SiteFooter />
         </div>
+        <ElectricSelection />
         <Analytics />
       </body>
     </html>
