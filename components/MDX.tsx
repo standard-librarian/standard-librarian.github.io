@@ -5,6 +5,20 @@ import { CodeSnippet } from "@/components/CodeSnippet";
 import { DynamicComponent } from "@/components/DynamicComponent";
 import { MdhtPortrait } from "@/components/MdhtPortrait";
 import { MdhtHero } from "@/components/MdhtHero";
+import {
+  ClientStoryFigmaScene,
+  ClientStoryImplementationScene,
+  ClientStoryIssuesScene,
+  ClientStoryIterationScene,
+  ClientStoryLaunchScene,
+  ClientStoryMeetingScene,
+  ClientStoryNotesScene,
+  ClientStoryRequirementsScene,
+  ClientStoryReviewScene,
+  ClientStoryStoriesScene,
+  ClientStoryTestingScene,
+} from "@/components/ClientStoryScenes";
+
 export const mdxComponents = {
   h1: (props: ComponentPropsWithoutRef<"h1">) => <h1 className="mdx-h1" {...props} />,
   h2: (props: ComponentPropsWithoutRef<"h2">) => <h2 className="mdx-h2" {...props} />,
@@ -28,4 +42,15 @@ export const mdxComponents = {
   DynamicComponent,
   MdhtPortrait,
   MdhtHero,
+  ClientStoryMeetingScene,
+  ClientStoryNotesScene,
+  ClientStoryRequirementsScene,
+  ClientStoryStoriesScene,
+  ClientStoryFigmaScene,
+  ClientStoryReviewScene,
+  ClientStoryIterationScene,
+  ClientStoryImplementationScene,
+  ClientStoryTestingScene,
+  ClientStoryIssuesScene,
+  ClientStoryLaunchScene,
 };

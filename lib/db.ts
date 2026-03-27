@@ -16,6 +16,30 @@ export function getDb(): Client {
   return _db;
 }
 
+function assertSafeIdentifier(value: string): string {
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value)) {
+    throw new Error(`Unsafe SQL identifier: ${value}`);
+  }
+  return value;
+}
+
+export async function ensureTableHasColumn(
+  tableName: string,
+  columnName: string,
+  definition: string
+): Promise<void> {
+  const safeTableName = assertSafeIdentifier(tableName);
+  const safeColumnName = assertSafeIdentifier(columnName);
+  const result = await getDb().execute(`PRAGMA table_info(${safeTableName})`);
+  const hasColumn = result.rows.some((row) => String(row.name) === safeColumnName);
+
+  if (!hasColumn) {
+    await getDb().execute(
+      `ALTER TABLE ${safeTableName} ADD COLUMN ${safeColumnName} ${definition}`
+    );
+  }
+}
+
 // Creates the posts and widgets tables if they don't exist. Called once per process.
 export async function ensureSchema(): Promise<void> {
   if (!_schemaReady) {
@@ -29,10 +53,13 @@ export async function ensureSchema(): Promise<void> {
         summary      TEXT NOT NULL DEFAULT '',
         content      TEXT NOT NULL DEFAULT '',
         reading_time TEXT NOT NULL DEFAULT '',
+        is_unlisted  INTEGER NOT NULL DEFAULT 0,
         created_at   TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
       )
-    `).then(() => db.execute(`
+    `)
+      .then(() => ensureTableHasColumn("posts", "is_unlisted", "INTEGER NOT NULL DEFAULT 0"))
+      .then(() => db.execute(`
       CREATE TABLE IF NOT EXISTS widgets (
         id          TEXT PRIMARY KEY,
         name        TEXT NOT NULL,
@@ -43,13 +70,15 @@ export async function ensureSchema(): Promise<void> {
         created_at  TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
       )
-    `)).then(() => db.execute(`
+    `))
+      .then(() => db.execute(`
       CREATE TABLE IF NOT EXISTS previews (
         id         TEXT PRIMARY KEY,
         content    TEXT NOT NULL,
         expires_at TEXT NOT NULL DEFAULT (datetime('now', '+30 minutes'))
       )
-    `)).then(() => undefined);
+    `))
+      .then(() => undefined);
   }
   return _schemaReady;
 }

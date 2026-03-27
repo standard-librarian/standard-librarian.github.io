@@ -9,6 +9,11 @@ export type Post = {
   summary: string;
   readingTime: string;
   content: string;
+  isUnlisted: boolean;
+};
+
+type GetAllPostsOptions = {
+  includeUnlisted?: boolean;
 };
 
 function rowToPost(row: Record<string, unknown>): Post {
@@ -21,18 +26,31 @@ function rowToPost(row: Record<string, unknown>): Post {
     summary: String(row.summary ?? ""),
     readingTime: String(row.reading_time ?? readingTime(content).text),
     content,
+    isUnlisted: Boolean(Number(row.is_unlisted ?? 0)),
   };
 }
 
-export async function getAllPosts(): Promise<Post[]> {
+export async function getAllPosts(
+  options: GetAllPostsOptions = {}
+): Promise<Post[]> {
   await ensureSchema();
-  const result = await db.execute("SELECT * FROM posts ORDER BY date DESC");
+  const result = await db.execute(
+    options.includeUnlisted
+      ? "SELECT * FROM posts ORDER BY date DESC"
+      : "SELECT * FROM posts WHERE is_unlisted = 0 ORDER BY date DESC"
+  );
   return result.rows.map((r) => rowToPost(r as Record<string, unknown>));
 }
 
-export async function getPostSlugs(): Promise<string[]> {
+export async function getPostSlugs(
+  options: GetAllPostsOptions = {}
+): Promise<string[]> {
   await ensureSchema();
-  const result = await db.execute("SELECT slug FROM posts");
+  const result = await db.execute(
+    options.includeUnlisted
+      ? "SELECT slug FROM posts"
+      : "SELECT slug FROM posts WHERE is_unlisted = 0"
+  );
   return result.rows.map((r) => String(r.slug));
 }
 

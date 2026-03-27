@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPostBySlug } from "@/lib/posts";
 import { db, ensureSchema } from "@/lib/db";
 import { isAdmin } from "@/lib/auth";
+import { normalizePostSlug } from "@/lib/post-slugs";
 
 export async function GET(
   _req: NextRequest,
@@ -21,28 +22,36 @@ export async function PUT(
   }
 
   const body = await request.json();
-  const { title, date, tags, summary, content, reading_time } = body;
+  const { slug, title, date, tags, summary, content, reading_time, isUnlisted } = body;
+  const normalizedSlug = normalizePostSlug(String(slug ?? params.slug));
+
+  if (!normalizedSlug) {
+    return NextResponse.json({ error: "Slug is required" }, { status: 400 });
+  }
 
   await ensureSchema();
   await db.execute({
-    sql: `INSERT INTO posts (slug, title, date, tags, summary, content, reading_time)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(slug) DO UPDATE SET
-            title        = excluded.title,
-            date         = excluded.date,
-            tags         = excluded.tags,
-            summary      = excluded.summary,
-            content      = excluded.content,
-            reading_time = excluded.reading_time,
-            updated_at   = datetime('now')`,
+    sql: `UPDATE posts
+          SET slug = ?,
+              title = ?,
+              date = ?,
+              tags = ?,
+              summary = ?,
+              content = ?,
+              reading_time = ?,
+              is_unlisted = ?,
+              updated_at = datetime('now')
+          WHERE slug = ?`,
     args: [
-      params.slug,
+      normalizedSlug,
       title,
       date,
       JSON.stringify(tags ?? []),
       summary ?? "",
       content ?? "",
       reading_time ?? "",
+      isUnlisted ? 1 : 0,
+      params.slug,
     ],
   });
 

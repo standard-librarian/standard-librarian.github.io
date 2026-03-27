@@ -11,7 +11,7 @@ async function deletePost(slug: string) {
 }
 
 export default async function AdminPage() {
-  const posts = await getAllPosts();
+  const posts = await getAllPosts({ includeUnlisted: true });
 
   return (
     <section className="section">
@@ -28,6 +28,7 @@ export default async function AdminPage() {
           <thead>
             <tr>
               <th>Title</th>
+              <th>Visibility</th>
               <th>Date</th>
               <th>Tags</th>
               <th>Actions</th>
@@ -39,6 +40,7 @@ export default async function AdminPage() {
                 <td>
                   <Link href={`/posts/${post.slug}`}>{post.title}</Link>
                 </td>
+                <td>{post.isUnlisted ? "Unlisted" : "Public"}</td>
                 <td>{post.date}</td>
                 <td>{post.tags.join(", ")}</td>
                 <td className="admin-actions">

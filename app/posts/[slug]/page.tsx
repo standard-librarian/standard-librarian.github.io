@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { getPostBySlug } from "@/lib/posts";
 import { renderMdx } from "@/lib/mdx";
 import { site } from "@/lib/site";
+import { buildPostMetadata } from "@/lib/post-metadata";
 import { getReactionsForPost } from "@/lib/db";
 import { PostPrompt } from "@/components/PostPrompt";
 import { ShareButtons } from "@/components/ShareButtons";
@@ -22,16 +23,7 @@ export async function generateMetadata({
     return {};
   }
 
-  return {
-    title: post.title,
-    description: post.summary,
-    openGraph: {
-      title: post.title,
-      description: post.summary,
-      url: `${site.url}/posts/${post.slug}`,
-      type: "article",
-    },
-  };
+  return buildPostMetadata(post);
 }
 
 export default async function PostPage({

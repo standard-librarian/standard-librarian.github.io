@@ -3,18 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Post } from "@/lib/posts";
+import {
+  normalizePostSlug,
+  setCustomSlug,
+  syncSlugWithTitle,
+} from "@/lib/post-slugs";
 import { createPreview } from "@/app/admin/preview-action";
 
 type PostEditorProps = {
   post?: Post;
 };
-
-function slugify(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
 
 export function PostEditor({ post }: PostEditorProps) {
   const router = useRouter();
@@ -23,15 +21,19 @@ export function PostEditor({ post }: PostEditorProps) {
   const today = new Date().toISOString().split("T")[0];
 
   const [title, setTitle] = useState(post?.title ?? "");
+  const [slug, setSlug] = useState(post?.slug ?? "");
+  const [slugTouched, setSlugTouched] = useState(Boolean(post?.slug));
   const [date, setDate] = useState(post?.date ?? today);
   const [tags, setTags] = useState(post?.tags.join(", ") ?? "");
   const [summary, setSummary] = useState(post?.summary ?? "");
   const [content, setContent] = useState(post?.content ?? "");
+  const [isUnlisted, setIsUnlisted] = useState(post?.isUnlisted ?? false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [titleError, setTitleError] = useState("");
+  const [slugError, setSlugError] = useState("");
 
   async function handlePreview() {
     setError("");
@@ -48,12 +50,18 @@ export function PostEditor({ post }: PostEditorProps) {
       setTitleError("Title is required");
       return;
     }
+    const normalizedSlug = normalizePostSlug(slug);
+    if (!normalizedSlug) {
+      setSlugError("Slug is required");
+      return;
+    }
     setTitleError("");
+    setSlugError("");
     setSaving(true);
     setSaved(false);
     setError("");
 
-    const slug = isNew ? slugify(title) : post.slug;
+    setSlug(normalizedSlug);
     const tagArray = tags
       .split(",")
       .map((t) => t.trim())
@@ -64,7 +72,16 @@ export function PostEditor({ post }: PostEditorProps) {
     const mins = Math.max(1, Math.round(wordCount / 200));
     const reading_time = `${mins} min read`;
 
-    const body = { slug, title, date, tags: tagArray, summary, content, reading_time };
+    const body = {
+      slug: normalizedSlug,
+      title,
+      date,
+      tags: tagArray,
+      summary,
+      content,
+      reading_time,
+      isUnlisted,
+    };
 
     const res = await fetch(isNew ? "/api/posts" : `/api/posts/${post.slug}`, {
       method: isNew ? "POST" : "PUT",
@@ -102,10 +119,37 @@ export function PostEditor({ post }: PostEditorProps) {
               <input
                 className={`admin-input${titleError ? " admin-input-error" : ""}`}
                 value={title}
-                onChange={(e) => { setTitle(e.target.value); if (e.target.value.trim()) setTitleError(""); }}
+                onChange={(e) => {
+                  const nextTitle = e.target.value;
+                  const nextSlugState = syncSlugWithTitle(
+                    { slug, slugTouched },
+                    nextTitle
+                  );
+                  setTitle(nextTitle);
+                  setSlug(nextSlugState.slug);
+                  setSlugTouched(nextSlugState.slugTouched);
+                  if (nextTitle.trim()) setTitleError("");
+                  if (nextSlugState.slug.trim()) setSlugError("");
+                }}
                 placeholder="Post title"
               />
               {titleError && <p className="admin-field-error">{titleError}</p>}
+            </div>
+
+            <label className="admin-label">Slug *</label>
+            <div>
+              <input
+                className={`admin-input${slugError ? " admin-input-error" : ""}`}
+                value={slug}
+                onChange={(e) => {
+                  const nextSlugState = setCustomSlug(e.target.value);
+                  setSlug(nextSlugState.slug);
+                  setSlugTouched(nextSlugState.slugTouched);
+                  if (nextSlugState.slug.trim()) setSlugError("");
+                }}
+                placeholder="custom-opaque-slug"
+              />
+              {slugError && <p className="admin-field-error">{slugError}</p>}
             </div>
 
             <label className="admin-label">Date</label>
@@ -131,6 +175,26 @@ export function PostEditor({ post }: PostEditorProps) {
               onChange={(e) => setSummary(e.target.value)}
               placeholder="One-sentence summary for the listing page"
             />
+
+            <label className="admin-label" htmlFor="is-unlisted">
+              Visibility
+            </label>
+            <label
+              htmlFor="is-unlisted"
+              style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer" }}
+            >
+              <input
+                id="is-unlisted"
+                type="checkbox"
+                checked={isUnlisted}
+                onChange={(e) => setIsUnlisted(e.target.checked)}
+                style={{ marginTop: "4px" }}
+              />
+              <span style={{ color: "var(--muted)", lineHeight: 1.5 }}>
+                Mark as unlisted. The post will still work on its direct URL, but it will stay out
+                of public listings and be served with <code>noindex</code>.
+              </span>
+            </label>
           </div>
 
           <textarea
