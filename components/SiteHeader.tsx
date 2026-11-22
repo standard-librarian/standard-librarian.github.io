@@ -15,6 +15,7 @@ export function SiteHeader() {
             <Link href="/oss">OSS</Link>
             <Link href="/about">About</Link>
             <Link href="/resume">Resume</Link>
+            <Link href="/hire">Hire</Link>
           </nav>
           <button
             className="search-trigger"
